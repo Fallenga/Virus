@@ -1002,8 +1002,15 @@ public class AttackableAI extends CreatureAI
 		{
 			if (checkTarget(target))
 			{
-				moveToPawn(target, range);
-				return;
+				/*
+				 * IMPORTANTE: no interpolar Z manualmente. GeoEngine debe decidir la capa/altura transitable completa. Esto evita saltos de capa en pendientes, curvas, puentes y obstáculos, que visualmente terminan mostrando al NPC cayendo del cielo.
+				 */
+				final Location validLoc = GeoEngine.getInstance().getValidLocation(npc.getX(), npc.getY(), npc.getZ(), target.getX(), target.getY(), target.getZ(), npc.getInstanceWorld());
+				if (npc.calculateDistanceSq2D(validLoc) > 25)
+				{
+					moveTo(validLoc.getX(), validLoc.getY(), validLoc.getZ());
+					return;
+				}
 			}
 			
 			target = targetReconsider(false);
@@ -1485,10 +1492,10 @@ public class AttackableAI extends CreatureAI
 		final Attackable npc = getActiveChar();
 		final double baseAngle = Math.atan2(npc.getY() - target.getY(), npc.getX() - target.getX());
 		
-		// 8 pasos cubren perfectamente los 360° en saltos simétricos de 45°
+		// 8 pasos cubren los 360 grados en saltos de 45 grados.
 		for (int i = 0; i < 8; i++)
 		{
-			final double angleOffset = (i * Math.PI) / 4; // 45 grados en radianes
+			final double angleOffset = (i * Math.PI) / 4;
 			for (double sign : new double[]
 			{
 				1.0,
@@ -1497,30 +1504,38 @@ public class AttackableAI extends CreatureAI
 			{
 				if ((i == 0) && (sign == -1.0))
 				{
-					continue; // Evita duplicar la comprobación para el ángulo base (offset 0)
+					continue;
 				}
 				
 				final double testAngle = baseAngle + (sign * angleOffset);
 				final int testX = target.getX() + (int) (desiredDistance * Math.cos(testAngle));
 				final int testY = target.getY() + (int) (desiredDistance * Math.sin(testAngle));
-				final int testZ = target.getZ();
 				
-				// Verifica si el camino hacia la nueva coordenada es transitable según el GeoEngine
-				if (!GeoEngine.getInstance().canMoveToTarget(npc.getX(), npc.getY(), npc.getZ(), testX, testY, testZ, npc.getInstanceWorld()))
+				/*
+				 * No usar target.getZ() como Z del punto lateral: en pendientes ese X/Y puede pertenecer a otra altura. Pedimos a GeoEngine el último punto realmente alcanzable desde la posición actual del NPC.
+				 */
+				final Location validLoc = GeoEngine.getInstance().getValidLocation(npc.getX(), npc.getY(), npc.getZ(), testX, testY, target.getZ(), npc.getInstanceWorld());
+				
+				// Si GeoEngine tuvo que recortar mucho el destino, este punto no sirve para dispersión.
+				if ((Math.abs(validLoc.getX() - testX) > 32) || (Math.abs(validLoc.getY() - testY) > 32))
 				{
 					continue;
 				}
 				
-				// Comprueba si ya hay otro mob atacando al mismo objetivo en este punto
+				if (!GeoEngine.getInstance().canMoveToTarget(npc.getX(), npc.getY(), npc.getZ(), validLoc.getX(), validLoc.getY(), validLoc.getZ(), npc.getInstanceWorld()))
+				{
+					continue;
+				}
+				
 				boolean spotOccupied = false;
 				for (Attackable nearby : World.getInstance().getVisibleObjectsInRange(npc, Attackable.class, minSeparation * 2))
 				{
-					if ((nearby == npc) || (nearby == target) || nearby.isDead() || (nearby.getTarget() != target))
+					if ((nearby == npc) || nearby.isDead() || (nearby.getTarget() != target))
 					{
 						continue;
 					}
 					
-					if (nearby.calculateDistance2D(testX, testY, testZ) < minSeparation)
+					if (nearby.calculateDistance2D(validLoc.getX(), validLoc.getY(), validLoc.getZ()) < minSeparation)
 					{
 						spotOccupied = true;
 						break;
@@ -1529,11 +1544,39 @@ public class AttackableAI extends CreatureAI
 				
 				if (!spotOccupied)
 				{
-					return new Location(testX, testY, testZ);
+					return validLoc;
 				}
 			}
 		}
 		return null;
+	}
+	
+	@Override
+	protected boolean maybeMoveToPawn(WorldObject target, int range)
+	{
+		final Attackable npc = getActiveChar();
+		if (npc.isMovementDisabled() || (target == null))
+		{
+			return false;
+		}
+		
+		// Si ya estamos dentro del rango solicitado, no iniciar un nuevo movimiento.
+		if (npc.isInsideRadius2D(target, range))
+		{
+			return false;
+		}
+		
+		/*
+		 * Usar directamente la ubicación devuelta por GeoEngine. No aplicar getNearestZ, getSmoothZ ni interpolación vertical después, porque podría cambiar de capa.
+		 */
+		final Location validLoc = GeoEngine.getInstance().getValidLocation(npc.getX(), npc.getY(), npc.getZ(), target.getX(), target.getY(), target.getZ(), npc.getInstanceWorld());
+		if (npc.calculateDistanceSq2D(validLoc) > 25)
+		{
+			moveTo(validLoc.getX(), validLoc.getY(), validLoc.getZ());
+			return true;
+		}
+		
+		return false;
 	}
 	
 	/**

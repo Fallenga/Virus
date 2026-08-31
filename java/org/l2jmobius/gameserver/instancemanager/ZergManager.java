@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.l2jmobius.gameserver.enums.TeleportWhereType; // Importación adaptada para L2JMobius
+import org.l2jmobius.gameserver.model.Location;
 import org.l2jmobius.gameserver.model.actor.Player;
 import org.l2jmobius.gameserver.model.clan.Clan;
 import org.l2jmobius.gameserver.model.zone.ZoneId;
@@ -41,6 +41,7 @@ import org.l2jmobius.gameserver.network.serverpackets.NpcHtmlMessage;
 public class ZergManager
 {
 	private static final Logger _log = Logger.getLogger(ZergManager.class.getName());
+	private static final Location GIRAN_TOWN = new Location(83463, 148045, -3400);
 	
 	public ZergManager()
 	{
@@ -129,7 +130,7 @@ public class ZergManager
 			if (forcedTeleport)
 			{
 				activeChar.sendPacket(new ExShowScreenMessage("Allowed only " + numberBox + " clans members on this area!", 6 * 1000));
-				activeChar.teleToLocation(TeleportWhereType.TOWN); // Adaptado a L2JMobius
+				activeChar.teleToLocation(GIRAN_TOWN); // Adaptado a L2JMobius
 			}
 			return true;
 		}
@@ -143,7 +144,7 @@ public class ZergManager
 			if (forcedTeleport)
 			{
 				activeChar.sendPacket(new ExShowScreenMessage("Allowed only " + numberBox + " ally members on this area!", 6 * 1000));
-				activeChar.teleToLocation(TeleportWhereType.TOWN); // Adaptado a L2JMobius
+				activeChar.teleToLocation(GIRAN_TOWN); // Adaptado a L2JMobius
 			}
 			return true;
 		}

@@ -41,7 +41,7 @@ public class PlayerAppearance
 	
 	/** The default name color is 0xFFFFFF. */
 	private int _nameColor = 0xFFFFFF;
-	
+	private boolean _invisible = false;
 	/** The default title color is 0xECF9A2. */
 	private int _titleColor = DEFAULT_TITLE_COLOR;
 	
@@ -85,6 +85,11 @@ public class PlayerAppearance
 	public void setVisibleTitle(String visibleTitle)
 	{
 		_visibleTitle = visibleTitle;
+	}
+	
+	public void setVisible()
+	{
+		_invisible = false;
 	}
 	
 	/**

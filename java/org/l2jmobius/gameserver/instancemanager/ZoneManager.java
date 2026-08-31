@@ -80,6 +80,7 @@ import org.l2jmobius.gameserver.model.zone.type.SwampZone;
 import org.l2jmobius.gameserver.model.zone.type.TaxZone;
 import org.l2jmobius.gameserver.model.zone.type.TeleportZone;
 import org.l2jmobius.gameserver.model.zone.type.TemplarZone;
+import org.l2jmobius.gameserver.model.zone.type.TournamentZone;
 import org.l2jmobius.gameserver.model.zone.type.UndyingZone;
 import org.l2jmobius.gameserver.model.zone.type.WaterZone;
 
@@ -461,6 +462,7 @@ public class ZoneManager implements IXmlReader
 		_classZones.put(UndyingZone.class, new ConcurrentHashMap<>());
 		_classZones.put(WaterZone.class, new ConcurrentHashMap<>());
 		_classZones.put(TemplarZone.class, new ConcurrentHashMap<>());
+		_classZones.put(TournamentZone.class, new ConcurrentHashMap<>());
 		_classZones.put(NoZergZone.class, new ConcurrentHashMap<>());
 		_spawnTerritories.clear();
 		parseDatapackDirectory("data/zones", false);

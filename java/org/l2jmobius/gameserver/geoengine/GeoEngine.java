@@ -60,6 +60,8 @@ public class GeoEngine
 	// CONFIGURACIONES DE PRECISIÓN
 	private static final int EYE_HEIGHT = 45; // Altura por defecto para objetos estáticos.
 	private static final int MAX_Z_DIFF = 64; // Máxima diferencia de altura permitida por celda.
+	private static final int MOVEMENT_LAYER_TOLERANCE = 48; // Igual al CELL_IGNORE_HEIGHT de la GeoEngine de referencia (6 * 8).
+	private static final int MAX_MOVEMENT_LAYER_STEP = 192; // Protección ante saltos accidentales entre capas/pisos.
 	
 	private final GeoData _geodata = new GeoData();
 	private PrintWriter _geoBugReports = null; // MEJORA ACIS: Impresor de reportes de bugs de geodata
@@ -180,6 +182,71 @@ public class GeoEngine
 	public int getNearestZ(int geoX, int geoY, int worldZ)
 	{
 		return _geodata.getNearestZ(geoX, geoY, worldZ);
+	}
+	
+	/**
+	 * MEJORA: Obtiene la altura en pendientes de forma suavizada, evitando saltos bruscos. Útil para movimiento de mobs en terrenos inclinados.
+	 */
+	public int getSmoothZ(int x, int y, int z, int prevZ)
+	{
+		final int geoX = getGeoX(x);
+		final int geoY = getGeoY(y);
+		
+		if (!hasGeoPos(geoX, geoY))
+		{
+			return z;
+		}
+		
+		final int nearestZ = getNearestZ(geoX, geoY, z);
+		final int nextLowerZ = getNextLowerZ(geoX, geoY, z + 20);
+		
+		// Si la diferencia con la altura anterior es muy grande, intentar suavizar
+		if (Math.abs(nearestZ - prevZ) > (MAX_Z_DIFF * 2))
+		{
+			// Usar la altura más cercana a la anterior
+			final int diffToNearest = Math.abs(nearestZ - prevZ);
+			final int diffToLower = Math.abs(nextLowerZ - prevZ);
+			return diffToNearest < diffToLower ? nearestZ : nextLowerZ;
+		}
+		
+		// Si estamos en una pendiente, usar la altura que está entre la actual y la anterior
+		if (Math.abs(nearestZ - nextLowerZ) > MAX_Z_DIFF)
+		{
+			// Interpolación para pendientes suaves
+			final int diff = nearestZ - nextLowerZ;
+			if ((diff > 0) && (diff < 200))
+			{
+				final int interpZ = nextLowerZ + (diff / 2);
+				if (Math.abs(interpZ - prevZ) < Math.abs(nearestZ - prevZ))
+				{
+					return interpZ;
+				}
+			}
+		}
+		
+		return nearestZ;
+	}
+	
+	/**
+	 * Obtiene la capa de suelo para el siguiente paso de movimiento manteniendo como referencia la capa que la criatura venía pisando. La lógica está adaptada del GeoEngine de referencia: en vez de elegir libremente el Z más cercano, busca la capa inmediatamente inferior a previousZ + 48. Esto
+	 * evita saltos entre pisos en bloques multilayer, puentes, curvas y pendientes.
+	 */
+	private int getMovementLayerZ(int geoX, int geoY, int previousZ)
+	{
+		if (!hasGeoPos(geoX, geoY))
+		{
+			return previousZ;
+		}
+		
+		final int lowerZ = getNextLowerZ(geoX, geoY, previousZ + MOVEMENT_LAYER_TOLERANCE);
+		if (Math.abs(lowerZ - previousZ) <= MAX_MOVEMENT_LAYER_STEP)
+		{
+			return lowerZ;
+		}
+		
+		// Fallback conservador: sólo aceptar nearest si permanece cerca de la capa actual.
+		final int nearestZ = getNearestZ(geoX, geoY, previousZ);
+		return Math.abs(nearestZ - previousZ) <= MAX_MOVEMENT_LAYER_STEP ? nearestZ : previousZ;
 	}
 	
 	public int getNextLowerZ(int geoX, int geoY, int worldZ)
@@ -471,16 +538,21 @@ public class GeoEngine
 		int geoY = getGeoY(y);
 		z = getNearestZ(geoX, geoY, z);
 		
-		int tGeoX = getGeoX(tx);
-		int tGeoY = getGeoY(ty);
-		tz = getNearestZ(tGeoX, tGeoY, tz);
+		final int tGeoX = getGeoX(tx);
+		final int tGeoY = getGeoY(ty);
+		final int targetGeoZ = getNearestZ(tGeoX, tGeoY, tz);
 		
-		if (DoorData.getInstance().checkIfDoorsBetween(x, y, z, tx, ty, tz, instance, false))
+		if (DoorData.getInstance().checkIfDoorsBetween(x, y, z, tx, ty, targetGeoZ, instance, false))
 		{
-			return new Location(x, y, getHeight(x, y, z));
+			return new Location(x, y, z);
 		}
 		
-		LinePointIterator pointIter = new LinePointIterator(geoX, geoY, tGeoX, tGeoY);
+		if (FenceData.getInstance().checkIfFenceBetween(x, y, z, tx, ty, targetGeoZ, instance))
+		{
+			return new Location(x, y, z);
+		}
+		
+		final LinePointIterator pointIter = new LinePointIterator(geoX, geoY, tGeoX, tGeoY);
 		pointIter.next();
 		int prevX = pointIter.x();
 		int prevY = pointIter.y();
@@ -488,23 +560,22 @@ public class GeoEngine
 		
 		while (pointIter.next())
 		{
-			int curX = pointIter.x();
-			int curY = pointIter.y();
-			int curZ = getNearestZ(curX, curY, prevZ);
+			final int curX = pointIter.x();
+			final int curY = pointIter.y();
 			
 			if (hasGeoPos(prevX, prevY))
 			{
-				int nswe = GeoUtils.computeNswe(prevX, prevY, curX, curY);
+				final int nswe = GeoUtils.computeNswe(prevX, prevY, curX, curY);
 				if (!checkNearestNsweAntiCornerCut(prevX, prevY, prevZ, nswe))
 				{
 					return new Location(getWorldX(prevX), getWorldY(prevY), prevZ);
 				}
-				
-				// Validación de salto Z: Evita teletransportarse o escalar alturas imposibles en un solo paso
-				if (Math.abs(curZ - prevZ) > MAX_Z_DIFF)
-				{
-					return new Location(getWorldX(prevX), getWorldY(prevY), prevZ);
-				}
+			}
+			
+			final int curZ = getMovementLayerZ(curX, curY, prevZ);
+			if (Math.abs(curZ - prevZ) > MAX_MOVEMENT_LAYER_STEP)
+			{
+				return new Location(getWorldX(prevX), getWorldY(prevY), prevZ);
 			}
 			
 			prevX = curX;
@@ -512,17 +583,16 @@ public class GeoEngine
 			prevZ = curZ;
 		}
 		
-		if (hasGeoPos(prevX, prevY) && (prevZ != tz) && (Math.abs(prevZ - tz) > 1000))
+		// Igual que la GeoEngine de referencia: si llegamos al mismo X/Y pero el piso
+		// objetivo no pertenece a la capa recorrida, no saltar al otro piso.
+		if (Math.abs(prevZ - targetGeoZ) > MOVEMENT_LAYER_TOLERANCE)
 		{
 			return new Location(x, y, z);
 		}
 		
-		return new Location(tx, ty, tz);
+		return new Location(tx, ty, prevZ);
 	}
 	
-	/**
-	 * MEJORA: Agregado el control de Z-Delta (MAX_Z_DIFF) para las comprobaciones de movimiento. Ayuda al buscador de rutas (pathfinding) a no trazar caminos que requieran saltar acantilados o muros.
-	 */
 	public boolean canMoveToTarget(int fromX, int fromY, int fromZ, int toX, int toY, int toZ, Instance instance)
 	{
 		int geoX = getGeoX(fromX);
@@ -532,17 +602,21 @@ public class GeoEngine
 		int tGeoY = getGeoY(toY);
 		toZ = getNearestZ(tGeoX, tGeoY, toZ);
 		
+		// Door checks.
 		if (DoorData.getInstance().checkIfDoorsBetween(fromX, fromY, fromZ, toX, toY, toZ, instance, false))
 		{
 			return false;
 		}
 		
+		// Fence checks.
 		if (FenceData.getInstance().checkIfFenceBetween(fromX, fromY, fromZ, toX, toY, toZ, instance))
 		{
 			return false;
 		}
 		
 		LinePointIterator pointIter = new LinePointIterator(geoX, geoY, tGeoX, tGeoY);
+		
+		// First point is guaranteed to be available
 		pointIter.next();
 		int prevX = pointIter.x();
 		int prevY = pointIter.y();
@@ -552,18 +626,12 @@ public class GeoEngine
 		{
 			int curX = pointIter.x();
 			int curY = pointIter.y();
-			int curZ = getNearestZ(curX, curY, prevZ);
+			int curZ = getMovementLayerZ(curX, curY, prevZ);
 			
 			if (hasGeoPos(prevX, prevY))
 			{
 				int nswe = GeoUtils.computeNswe(prevX, prevY, curX, curY);
 				if (!checkNearestNsweAntiCornerCut(prevX, prevY, prevZ, nswe))
-				{
-					return false;
-				}
-				
-				// Si la pendiente vertical es demasiado empinada, bloqueamos el movimiento directo
-				if (Math.abs(curZ - prevZ) > MAX_Z_DIFF)
 				{
 					return false;
 				}
@@ -576,6 +644,7 @@ public class GeoEngine
 		
 		if (hasGeoPos(prevX, prevY) && (prevZ != toZ))
 		{
+			// Different floors
 			return false;
 		}
 		
@@ -598,7 +667,7 @@ public class GeoEngine
 		{
 			int curX = pointIter.x();
 			int curY = pointIter.y();
-			int curZ = getNearestZ(curX, curY, prevZ);
+			int curZ = getMovementLayerZ(curX, curY, prevZ);
 			
 			prevZ = curZ;
 		}

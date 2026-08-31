@@ -159,6 +159,9 @@ import org.l2jmobius.gameserver.model.World;
 import org.l2jmobius.gameserver.model.events.EventDispatcher;
 import org.l2jmobius.gameserver.model.events.EventType;
 import org.l2jmobius.gameserver.model.events.impl.OnServerStart;
+import org.l2jmobius.gameserver.model.events.tournament.properties.ArenaConfig;
+import org.l2jmobius.gameserver.model.events.tournament.properties.ArenaEvent;
+import org.l2jmobius.gameserver.model.events.tournament.properties.ArenaTask;
 import org.l2jmobius.gameserver.model.olympiad.Hero;
 import org.l2jmobius.gameserver.model.olympiad.Olympiad;
 import org.l2jmobius.gameserver.network.GameClient;
@@ -466,7 +469,35 @@ public class GameServer
 		{
 			_deadDetectThread = null;
 		}
-		
+		// =============================================
+		// INICIALIZACIÓN DEL SISTEMA DE TORNEO - AÑADIR AQUÍ
+		// =============================================
+		printSection("Tournament");
+		try
+		{
+			ArenaConfig.init();
+			
+			if (ArenaConfig.TOURNAMENT_EVENT_TIME)
+			{
+				LOGGER.info("Tournament Event is enabled (Scheduled mode).");
+				ArenaEvent.getInstance().StartCalculationOfNextEventTime();
+			}
+			else if (ArenaConfig.TOURNAMENT_EVENT_START)
+			{
+				LOGGER.info("Tournament Event is enabled (Manual start mode).");
+				ArenaTask.spawnNpc1();
+				ArenaTask.spawnNpc2();
+			}
+			else
+			{
+				LOGGER.info("Tournament Event is disabled.");
+			}
+		}
+		catch (Exception e)
+		{
+			LOGGER.log(Level.WARNING, "Failed to initialize Tournament System: " + e.getMessage(), e);
+		}
+		// =============================================
 		System.gc();
 		final long totalMem = Runtime.getRuntime().maxMemory() / 1048576;
 		LOGGER.info(getClass().getSimpleName() + ": Started, using " + getUsedMemoryMB() + " of " + totalMem + " MB total memory.");

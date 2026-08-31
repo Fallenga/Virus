@@ -26,6 +26,8 @@ import org.l2jmobius.gameserver.handler.AdminCommandHandler;
 import org.l2jmobius.gameserver.handler.BypassHandler;
 import org.l2jmobius.gameserver.handler.CommunityBoardHandler;
 import org.l2jmobius.gameserver.handler.IBypassHandler;
+import org.l2jmobius.gameserver.handler.IVoicedCommandHandler;
+import org.l2jmobius.gameserver.handler.VoicedCommandHandler;
 import org.l2jmobius.gameserver.instancemanager.CaptchaManager;
 import org.l2jmobius.gameserver.model.World;
 import org.l2jmobius.gameserver.model.WorldObject;
@@ -135,7 +137,36 @@ public class RequestBypassToServer extends ClientPacket
 		
 		try
 		{
-			if (_command.startsWith("admin_"))
+			if (_command.startsWith("voice ."))
+			{
+				final String voicedCommand = _command.substring(7).trim();
+				final int parameterIndex = voicedCommand.indexOf(' ');
+				
+				final String command;
+				final String parameters;
+				
+				if (parameterIndex > 0)
+				{
+					command = voicedCommand.substring(0, parameterIndex);
+					parameters = voicedCommand.substring(parameterIndex + 1).trim();
+				}
+				else
+				{
+					command = voicedCommand;
+					parameters = null;
+				}
+				
+				final IVoicedCommandHandler handler = VoicedCommandHandler.getInstance().getHandler(command);
+				if (handler != null)
+				{
+					handler.useVoicedCommand(command, player, parameters);
+				}
+				else
+				{
+					PacketLogger.warning("No voiced command handler registered for: " + command);
+				}
+			}
+			else if (_command.startsWith("admin_"))
 			{
 				AdminCommandHandler.getInstance().useAdminCommand(player, _command, true);
 			}

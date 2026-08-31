@@ -40,13 +40,13 @@ public class Vip24h implements IItemHandler
 		if (activeChar.destroyItem("Consume", item.getObjectId(), 1, null, false))
 		{
 			// Agrega 1 día de Premium a la cuenta del jugador
-			PremiumManager.getInstance().addPremiumTime(activeChar.getAccountName(), 1, TimeUnit.DAYS);
+			PremiumManager.getInstance().addPremiumTime(activeChar.getAccountName(), 7, TimeUnit.DAYS);
 			
 			// Obtiene la fecha de expiración calculada por el PremiumManager
 			long expireTime = PremiumManager.getInstance().getPremiumExpiration(activeChar.getAccountName());
 			String formattedDate = new SimpleDateFormat("dd.MM.yyyy HH:mm").format(expireTime);
 			
-			activeChar.sendMessage("¡Tu cuenta ahora tiene estado Premium de 24 horas!");
+			activeChar.sendMessage("¡Tu cuenta ahora tiene estado Premium de 7 Dias!");
 			activeChar.sendMessage("Expiración: " + formattedDate + ".");
 			
 			// Actualiza la interfaz del usuario

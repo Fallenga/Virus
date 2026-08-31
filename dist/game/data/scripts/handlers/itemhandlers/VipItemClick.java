@@ -50,7 +50,7 @@ public class VipItemClick implements IItemHandler
 			long currentEnd = Math.max(now, activeChar.getVipEndTime());
 			long newEnd = currentEnd + durationMs;
 			
-			PremiumManager.getInstance().addPremiumTime(activeChar.getAccountName(), 15, TimeUnit.DAYS);
+			PremiumManager.getInstance().addPremiumTime(activeChar.getAccountName(), 30, TimeUnit.DAYS);
 			activeChar.sendMessage("Tu cuenta ahora tendra estado premium hasta " + new SimpleDateFormat("dd.MM.yyyy HH:mm").format(PremiumManager.getInstance().getPremiumExpiration(activeChar.getAccountName())) + ".");
 			
 			String type = (durationMs >= 86400000L) ? "day(s)" : "hour(s)";

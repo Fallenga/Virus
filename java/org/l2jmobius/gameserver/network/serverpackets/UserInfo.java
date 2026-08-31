@@ -23,8 +23,6 @@ package org.l2jmobius.gameserver.network.serverpackets;
 import org.l2jmobius.Config;
 import org.l2jmobius.commons.network.WritableBuffer;
 import org.l2jmobius.gameserver.data.xml.ExperienceData;
-import org.l2jmobius.gameserver.data.xml.PlayerTemplateData;
-import org.l2jmobius.gameserver.enums.ClassId;
 import org.l2jmobius.gameserver.enums.UserInfoType;
 import org.l2jmobius.gameserver.instancemanager.CursedWeaponsManager;
 import org.l2jmobius.gameserver.model.Party;
@@ -286,19 +284,33 @@ public class UserInfo extends AbstractMaskPacket<UserInfoType>
 		if (containsMask(UserInfoType.COL_RADIUS_HEIGHT))
 		{
 			buffer.writeShort(18);
-			// buffer.writeDouble(_player.getCollisionRadius());
-			// buffer.writeDouble(_player.getCollisionHeight());
-			final int visualClassId = _player.getCustomClassSkin() == -1 ? _player.getClassId().getId() : _player.getCustomClassSkin();
 			
-			PlayerTemplate visualTemplate = PlayerTemplateData.getInstance().getTemplate(ClassId.getClassId(visualClassId));
+			double collisionRadius;
+			double collisionHeight;
 			
-			if (visualTemplate == null)
+			// Verificar si está transformado
+			java.util.Optional<org.l2jmobius.gameserver.model.actor.transform.Transform> optTransform = _player.getTransformation();
+			if (optTransform.isPresent())
 			{
-				visualTemplate = _player.getTemplate();
+				// ESTÁ TRANSFORMADO - USAR ALTURA DE TRANSFORMACIÓN DIRECTAMENTE
+				org.l2jmobius.gameserver.model.actor.transform.Transform transform = optTransform.get();
+				
+				collisionRadius = transform.getCollisionRadius(_player, _player.getTemplate().getCollisionRadius());
+				collisionHeight = transform.getCollisionHeight(_player, _player.getTemplate().getCollisionHeight());
+				
+				System.out.println("UserInfo TRANSFORMADO - Altura: " + collisionHeight);
+			}
+			else
+			{
+				// NO ESTÁ TRANSFORMADO - USAR LÓGICA NORMAL
+				PlayerTemplate templateToUse = _player.getCollisionTemplate();
+				collisionRadius = templateToUse.getCollisionRadius();
+				collisionHeight = templateToUse.getCollisionHeight();
+				
 			}
 			
-			buffer.writeDouble(visualTemplate.getCollisionRadius());
-			buffer.writeDouble(visualTemplate.getCollisionHeight());
+			buffer.writeDouble(collisionRadius);
+			buffer.writeDouble(collisionHeight);
 		}
 		if (containsMask(UserInfoType.ATK_ELEMENTAL))
 		{

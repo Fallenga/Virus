@@ -14453,119 +14453,61 @@ public class Player extends Playable
 		return _customRaceSkin;
 	}
 	
-	// Campos
-	private boolean _isInArenaEvent = false;
-	private boolean _isArenaAttack = false;
-	private boolean _isArenaProtection = false;
-	private boolean _isArena1x1 = false;
-	private boolean _isArena3x3 = false;
-	private boolean _isArena5x5 = false;
-	private boolean _isArena9x9 = false;
-	private boolean _isTeamTour1 = false;
-	private boolean _isTeamTour2 = false;
-	private boolean _isStopArena = false;
+	/** The _active_boxes. */
+	public int _active_boxes = -1;
+	
+	/** The active_boxes_characters. */
+	public List<String> active_boxes_characters = new ArrayList<>();
 	
 	public int _originalTitleColorTournament = 0;
-	public String _originalTitleTournament = "";
+	public String _originalTitleTournament;
+	// Tournament
+	public int duelist_cont = 0, dreadnought_cont = 0, tanker_cont = 0, dagger_cont = 0, archer_cont = 0, bs_cont = 0, archmage_cont = 0, soultaker_cont = 0, mysticMuse_cont = 0, stormScreamer_cont = 0, titan_cont = 0, grandKhauatari_cont = 0, dominator_cont = 0, doomcryer_cont = 0;
 	
-	// Getters y Setters
-	public boolean isInArenaEvent()
+	/**
+	 * Return the level of a skill owned by the Creature.
+	 * @param skillId The identifier of the Skill whose level must be returned
+	 * @return The level of the Skill identified by skillId
+	 */
+	public int getSkillSubLevel(int skillId)
 	{
-		return _isInArenaEvent;
+		final Skill skill = getKnownSkill(skillId);
+		return (skill == null) ? 0 : skill.getSubLevel();
 	}
 	
-	public void setInArenaEvent(boolean val)
+	/**
+	 * Obtiene la plantilla que debe usarse para el radio y altura de colisión.
+	 * @return la plantilla correcta para la colisión
+	 */
+	public PlayerTemplate getCollisionTemplate()
 	{
-		_isInArenaEvent = val;
+		// Si está transformado, siempre usar la plantilla actual (visual)
+		// Esto evita que se aplique la regla de Orco/Enano durante transformaciones
+		if (getTransformation().isPresent())
+		{
+			// Durante transformación, usar la plantilla visual
+			final int visualClassId = _customClassSkin == -1 ? _activeClass : _customClassSkin;
+			PlayerTemplate template = PlayerTemplateData.getInstance().getTemplate(ClassId.getClassId(visualClassId));
+			return template != null ? template : getTemplate();
+		}
+		
+		// Regla original para Orcos/Enanos con subclase (SOLO cuando NO están transformados)
+		Race currentRace = getRace();
+		boolean isBaseOrc = currentRace == Race.ORC;
+		boolean isBaseDwarf = currentRace == Race.DWARF;
+		boolean isBaseSpecialRace = isBaseOrc || isBaseDwarf;
+		boolean hasSubClass = _classIndex > 0;
+		boolean hasSkinChange = _customRaceSkin != -1;
+		
+		if (isBaseSpecialRace && hasSubClass && !hasSkinChange)
+		{
+			return getBaseTemplate();
+		}
+		
+		// Cualquier otro caso
+		final int visualClassId = _customClassSkin == -1 ? _activeClass : _customClassSkin;
+		PlayerTemplate template = PlayerTemplateData.getInstance().getTemplate(ClassId.getClassId(visualClassId));
+		return template != null ? template : getTemplate();
 	}
 	
-	public boolean isArenaAttack()
-	{
-		return _isArenaAttack;
-	}
-	
-	public void setArenaAttack(boolean val)
-	{
-		_isArenaAttack = val;
-	}
-	
-	public boolean isArenaProtection()
-	{
-		return _isArenaProtection;
-	}
-	
-	public void setArenaProtection(boolean val)
-	{
-		_isArenaProtection = val;
-	}
-	
-	public boolean isArena1x1()
-	{
-		return _isArena1x1;
-	}
-	
-	public void setArena1x1(boolean val)
-	{
-		_isArena1x1 = val;
-	}
-	
-	public boolean isArena3x3()
-	{
-		return _isArena3x3;
-	}
-	
-	public void setArena3x3(boolean val)
-	{
-		_isArena3x3 = val;
-	}
-	
-	public boolean isArena5x5()
-	{
-		return _isArena5x5;
-	}
-	
-	public void setArena5x5(boolean val)
-	{
-		_isArena5x5 = val;
-	}
-	
-	public boolean isArena9x9()
-	{
-		return _isArena9x9;
-	}
-	
-	public void setArena9x9(boolean val)
-	{
-		_isArena9x9 = val;
-	}
-	
-	public boolean isTeamTour1()
-	{
-		return _isTeamTour1;
-	}
-	
-	public void setTeamTour1(boolean val)
-	{
-		_isTeamTour1 = val;
-	}
-	
-	public boolean isTeamTour2()
-	{
-		return _isTeamTour2;
-	}
-	
-	public void setTeamTour2(boolean val)
-	{
-		_isTeamTour2 = val;
-	}
-	
-	public boolean isStopArena()
-	{
-		return _isStopArena;
-	}
-	
-	public void setStopArena(boolean val)
-	{
-		_isStopArena = val;
-	}
 }

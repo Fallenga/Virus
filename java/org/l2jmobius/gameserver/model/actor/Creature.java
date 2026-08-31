@@ -215,7 +215,7 @@ public abstract class Creature extends WorldObject implements IDeletable
 	private boolean _isInvul = false;
 	private boolean _isUndying = false;
 	private boolean _isFlying = false;
-	
+	private final int _maxBuffCount = Config.BUFFS_MAX_AMOUNT;
 	private boolean _blockActions = false;
 	private final Map<Integer, AtomicInteger> _blockActionsAllowedSkills = new ConcurrentHashMap<>();
 	
@@ -258,8 +258,6 @@ public abstract class Creature extends WorldObject implements IDeletable
 	private final Map<Integer, IgnoreSkillHolder> _ignoreSkillEffects = new ConcurrentHashMap<>(1);
 	/** Creatures effect list. */
 	private final EffectList _effectList = new EffectList(this);
-	
-	private final int _maxBuffCount = Config.BUFFS_MAX_AMOUNT;
 	/** The creature that summons this character. */
 	private Creature _summoner = null;
 	
@@ -3182,7 +3180,19 @@ public abstract class Creature extends WorldObject implements IDeletable
 	}
 	
 	/**
-	 * Update the position of the Creature during a movement and return True if the movement is finished. Optimizado para reducir el consumo de CPU en trigonometría y consultas a la GeoEngine.
+	 * Update the position of the Creature during a movement and return True if the movement is finished.<br>
+	 * <br>
+	 * <b><u>Concept</u>:</b><br>
+	 * <br>
+	 * At the beginning of the move action, all properties of the movement are stored in the MoveData object called <b>_move</b> of the Creature.<br>
+	 * The position of the start point and of the destination permit to estimated in function of the movement speed the time to achieve the destination.<br>
+	 * When the movement is started (ex : by MovetoLocation), this method will be called each 0.1 sec to estimate and update the Creature position on the server.<br>
+	 * Note, that the current server position can differe from the current client position even if each movement is straight foward.<br>
+	 * That's why, client send regularly a Client->Server ValidatePosition packet to eventually correct the gap on the server.<br>
+	 * But, it's always the server position that is used in range calculation. At the end of the estimated movement time,<br>
+	 * the Creature position is automatically set to the destination position even if the movement is not finished.<br>
+	 * <font color=#FF0000><b><u>Caution</u>: The current Z position is obtained FROM THE CLIENT by the Client->Server ValidatePosition Packet.<br>
+	 * But x and y positions must be calculated to avoid that players try to modify their movement speed.</b></font>
 	 * @return True if the movement is finished
 	 */
 	public boolean updatePosition()
@@ -3225,32 +3235,18 @@ public abstract class Creature extends WorldObject implements IDeletable
 		
 		if (isPlayer() && !_isFlying)
 		{
-			// OPTIMIZACIÓN DE TRIGONOMETRÍA:
-			// L2 heading (0-65535) convertido directamente a radianes.
-			// Simplificamos Math.PI + radian + course (double invert que da 360º redundantes).
-			final double radian = getHeading() * (Math.PI / 32768.0);
-			final double cos = Math.cos(radian);
-			final double sin = Math.sin(radian);
-			final double speedFactor = _stat.getMoveSpeed() * 0.01; // velocidad / 100
-			
-			// Proyección de distancia estándar (factor 10)
-			final int xProj10 = xPrev + (int) (cos * 10.0 * speedFactor);
-			final int yProj10 = yPrev + (int) (sin * 10.0 * speedFactor);
-			
-			// Instancia de GeoEngine local para acceso rápido
-			final GeoEngine geo = GeoEngine.getInstance();
-			final Instance worldInstance = getInstanceWorld();
-			
 			// In case of cursor movement, avoid moving through obstacles.
 			if (_cursorKeyMovement)
 			{
-				// OPTIMIZACIÓN GEOENGINE: Si no salimos de la celda de geodata actual, omitimos la consulta pesada
-				final int prevGeoX = geo.getGeoX(xPrev);
-				final int prevGeoY = geo.getGeoY(yPrev);
-				final int curGeoX = geo.getGeoX(xProj10);
-				final int curGeoY = geo.getGeoY(yProj10);
-				
-				if (((prevGeoX != curGeoX) || (prevGeoY != curGeoY)) && !geo.canMoveToTarget(xPrev, yPrev, zPrev, xProj10, yProj10, zPrev, worldInstance))
+				final double angle = Util.convertHeadingToDegree(getHeading());
+				final double radian = Math.toRadians(angle);
+				final double course = Math.toRadians(180);
+				final double frontDistance = 10 * (_stat.getMoveSpeed() / 100);
+				final int x1 = (int) (Math.cos(Math.PI + radian + course) * frontDistance);
+				final int y1 = (int) (Math.sin(Math.PI + radian + course) * frontDistance);
+				final int x = xPrev + x1;
+				final int y = yPrev + y1;
+				if (!GeoEngine.getInstance().canMoveToTarget(xPrev, yPrev, zPrev, x, y, zPrev, getInstanceWorld()))
 				{
 					_move.onGeodataPathIndex = -1;
 					stopMove(asPlayer().getLastServerPosition());
@@ -3263,12 +3259,15 @@ public abstract class Creature extends WorldObject implements IDeletable
 				final double distance = Math.hypot(dx, dy);
 				if (distance > 3000)
 				{
-					final int prevGeoX = geo.getGeoX(xPrev);
-					final int prevGeoY = geo.getGeoY(yPrev);
-					final int curGeoX = geo.getGeoX(xProj10);
-					final int curGeoY = geo.getGeoY(yProj10);
-					
-					if (((prevGeoX != curGeoX) || (prevGeoY != curGeoY)) && !geo.canMoveToTarget(xPrev, yPrev, zPrev, xProj10, yProj10, zPrev, worldInstance))
+					final double angle = Util.convertHeadingToDegree(getHeading());
+					final double radian = Math.toRadians(angle);
+					final double course = Math.toRadians(180);
+					final double frontDistance = 10 * (_stat.getMoveSpeed() / 100);
+					final int x1 = (int) (Math.cos(Math.PI + radian + course) * frontDistance);
+					final int y1 = (int) (Math.sin(Math.PI + radian + course) * frontDistance);
+					final int x = xPrev + x1;
+					final int y = yPrev + y1;
+					if (!GeoEngine.getInstance().canMoveToTarget(xPrev, yPrev, zPrev, x, y, zPrev, getInstanceWorld()))
 					{
 						_move.onGeodataPathIndex = -1;
 						if (hasAI())
@@ -3286,16 +3285,15 @@ public abstract class Creature extends WorldObject implements IDeletable
 				{
 					if (move.disregardingGeodata) // When no move path was found, use direct movement. Tested at retail on October 21st 2024.
 					{
-						// Proyección con factor 12 para disregardingGeodata
-						final int xProj12 = xPrev + (int) (cos * 12.0 * speedFactor);
-						final int yProj12 = yPrev + (int) (sin * 12.0 * speedFactor);
-						
-						final int prevGeoX = geo.getGeoX(xPrev);
-						final int prevGeoY = geo.getGeoY(yPrev);
-						final int curGeoX = geo.getGeoX(xProj12);
-						final int curGeoY = geo.getGeoY(yProj12);
-						
-						if (((prevGeoX != curGeoX) || (prevGeoY != curGeoY)) && !geo.canMoveToTarget(xPrev, yPrev, zPrev, xProj12, yProj12, zPrev, worldInstance))
+						final double angle = Util.convertHeadingToDegree(getHeading());
+						final double radian = Math.toRadians(angle);
+						final double course = Math.toRadians(180);
+						final double frontDistance = 12 * (_stat.getMoveSpeed() / 100);
+						final int x1 = (int) (Math.cos(Math.PI + radian + course) * frontDistance);
+						final int y1 = (int) (Math.sin(Math.PI + radian + course) * frontDistance);
+						final int x = xPrev + x1;
+						final int y = yPrev + y1;
+						if (!GeoEngine.getInstance().canMoveToTarget(xPrev, yPrev, zPrev, x, y, zPrev, getInstanceWorld()))
 						{
 							_suspendedMovement = true;
 							stopMove(getLocation());
@@ -3304,12 +3302,15 @@ public abstract class Creature extends WorldObject implements IDeletable
 					}
 					else if (hasAI() && (getAI().getIntention() == CtrlIntention.AI_INTENTION_ATTACK)) // Support for player attack with direct movement. Tested at retail on May 11th 2023.
 					{
-						final int prevGeoX = geo.getGeoX(xPrev);
-						final int prevGeoY = geo.getGeoY(yPrev);
-						final int curGeoX = geo.getGeoX(xProj10);
-						final int curGeoY = geo.getGeoY(yProj10);
-						
-						if (((prevGeoX != curGeoX) || (prevGeoY != curGeoY)) && !geo.canMoveToTarget(xPrev, yPrev, zPrev, xProj10, yProj10, zPrev, worldInstance))
+						final double angle = Util.convertHeadingToDegree(getHeading());
+						final double radian = Math.toRadians(angle);
+						final double course = Math.toRadians(180);
+						final double frontDistance = 10 * (_stat.getMoveSpeed() / 100);
+						final int x1 = (int) (Math.cos(Math.PI + radian + course) * frontDistance);
+						final int y1 = (int) (Math.sin(Math.PI + radian + course) * frontDistance);
+						final int x = xPrev + x1;
+						final int y = yPrev + y1;
+						if (!GeoEngine.getInstance().canMoveToTarget(xPrev, yPrev, zPrev, x, y, zPrev, getInstanceWorld()))
 						{
 							_suspendedMovement = true;
 							_move.onGeodataPathIndex = -1;
@@ -3326,8 +3327,16 @@ public abstract class Creature extends WorldObject implements IDeletable
 							final boolean hasFences = !region.getFences().isEmpty();
 							if (hasDoors || hasFences)
 							{
-								if ((hasDoors && DoorData.getInstance().checkIfDoorsBetween(xPrev, yPrev, zPrev, xProj10, yProj10, zPrev, worldInstance, false)) //
-									|| (hasFences && FenceData.getInstance().checkIfFenceBetween(xPrev, yPrev, zPrev, xProj10, yProj10, zPrev, worldInstance)))
+								final double angle = Util.convertHeadingToDegree(getHeading());
+								final double radian = Math.toRadians(angle);
+								final double course = Math.toRadians(180);
+								final double frontDistance = 10 * (_stat.getMoveSpeed() / 100);
+								final int x1 = (int) (Math.cos(Math.PI + radian + course) * frontDistance);
+								final int y1 = (int) (Math.sin(Math.PI + radian + course) * frontDistance);
+								final int x = xPrev + x1;
+								final int y = yPrev + y1;
+								if ((hasDoors && DoorData.getInstance().checkIfDoorsBetween(xPrev, yPrev, zPrev, x, y, zPrev, getInstanceWorld(), false)) //
+									|| (hasFences && FenceData.getInstance().checkIfFenceBetween(xPrev, yPrev, zPrev, x, y, zPrev, getInstanceWorld())))
 								{
 									_move.onGeodataPathIndex = -1;
 									if (hasAI())
@@ -3390,6 +3399,18 @@ public abstract class Creature extends WorldObject implements IDeletable
 		final boolean arrived = distFraction > 1.79;
 		if (arrived)
 		{
+			// Ground correction for terrestrial Attackables.
+			// Do not trust an interpolated/path destination Z blindly on slopes: snap the
+			// final position to the nearest geodata layer around the expected destination Z.
+			if ((this instanceof Attackable) && !isFloating)
+			{
+				final int groundZ = GeoEngine.getInstance().getHeight(move.xDestination, move.yDestination, move.zDestination);
+				if (Math.abs(groundZ - move.zDestination) <= 300)
+				{
+					move.zDestination = groundZ;
+				}
+			}
+			
 			// Set the position of the Creature to the destination.
 			super.setXYZ(move.xDestination, move.yDestination, move.zDestination);
 		}
@@ -3398,8 +3419,26 @@ public abstract class Creature extends WorldObject implements IDeletable
 			move.xAccurate += dx * distFraction;
 			move.yAccurate += dy * distFraction;
 			
-			// Set the position of the Creature to estimated after parcial move.
-			super.setXYZ((int) move.xAccurate, (int) move.yAccurate, zPrev + (int) ((dz * distFraction) + 0.895));
+			int nextZ = zPrev + (int) ((dz * distFraction) + 0.895);
+			
+			// Keep terrestrial mobs attached to the geodata floor during movement.
+			// This is intentionally restricted to Attackables so player/summon/flying
+			// movement remains exactly as in the working v3 baseline.
+			if ((this instanceof Attackable) && !isFloating)
+			{
+				final int nextX = (int) move.xAccurate;
+				final int nextY = (int) move.yAccurate;
+				final int groundZ = GeoEngine.getInstance().getHeight(nextX, nextY, nextZ);
+				
+				// Safety against accidentally snapping to another floor in multilayer areas.
+				if ((Math.abs(groundZ - nextZ) <= 160) && (Math.abs(groundZ - zPrev) <= 300))
+				{
+					nextZ = groundZ;
+				}
+			}
+			
+			// Set the position of the Creature to estimated after partial move.
+			super.setXYZ((int) move.xAccurate, (int) move.yAccurate, nextZ);
 		}
 		revalidateZone(false);
 		
@@ -3411,9 +3450,8 @@ public abstract class Creature extends WorldObject implements IDeletable
 	
 	public void revalidateZone(boolean force)
 	{
-		// OPTIMIZACIÓN: Evitamos Math.sqrt() usando distancia al cuadrado (getDistanceSq)
-		final double limit = isNpc() && !isInCombat() ? Config.MAX_DRIFT_RANGE : 100.0;
-		if (!force && (getDistanceSq(_lastZoneValidateLocation.getX(), _lastZoneValidateLocation.getY(), _lastZoneValidateLocation.getZ()) < (limit * limit)))
+		// This function is called too often from movement code.
+		if (!force && (calculateDistance3D(_lastZoneValidateLocation) < (isNpc() && !isInCombat() ? Config.MAX_DRIFT_RANGE : 100)))
 		{
 			return;
 		}
@@ -3697,16 +3735,13 @@ public abstract class Creature extends WorldObject implements IDeletable
 							distance = originalDistance;
 						}
 						
-						m.disregardingGeodata = true;
-						
-						if (this instanceof Attackable)
+						// Nunca permitir que un Attackable descarte el destino validado por GeoEngine.
+						// El fallback directo original era una de las causas de saltos de piso/Z.
+						if (!(this instanceof Attackable))
 						{
-							x = originalX;
-							y = originalY;
-							z = originalZ;
+							m.disregardingGeodata = true;
+							distance = originalDistance;
 						}
-						
-						distance = originalDistance;
 					}
 					else
 					{
@@ -3746,6 +3781,31 @@ public abstract class Creature extends WorldObject implements IDeletable
 				
 				getAI().setIntention(CtrlIntention.AI_INTENTION_IDLE);
 				return;
+			}
+		}
+		
+		// Ground NPCs are sent to the client in short terrain-following segments.
+		// A single long MoveToLocation from the top of a slope to the bottom makes the
+		// client interpolate XYZ as a straight chord, visually leaving mobs in the air.
+		// Pathfinding routes are already segmented, so this applies only to direct moves.
+		if ((this instanceof Attackable) && !isFlying() && !isInsideZone(ZoneId.WATER) && (m.onGeodataPathIndex == -1) && (distance > 240))
+		{
+			final double segmentRatio = 240.0 / distance;
+			final int segmentX = curX + (int) Math.round((x - curX) * segmentRatio);
+			final int segmentY = curY + (int) Math.round((y - curY) * segmentRatio);
+			final Location segmentLoc = GeoEngine.getInstance().getValidLocation(curX, curY, curZ, segmentX, segmentY, curZ, getInstanceWorld());
+			
+			x = segmentLoc.getX();
+			y = segmentLoc.getY();
+			z = segmentLoc.getZ();
+			dx = x - curX;
+			dy = y - curY;
+			dz = z - curZ;
+			distance = Math.hypot(dx, dy);
+			if (distance > 0)
+			{
+				sin = dy / distance;
+				cos = dx / distance;
 			}
 		}
 		
@@ -4566,17 +4626,6 @@ public abstract class Creature extends WorldObject implements IDeletable
 	{
 		final Skill skill = getKnownSkill(skillId);
 		return (skill == null) ? 0 : skill.getLevel();
-	}
-	
-	/**
-	 * Return the level of a skill owned by the Creature.
-	 * @param skillId The identifier of the Skill whose level must be returned
-	 * @return The level of the Skill identified by skillId
-	 */
-	public int getSkillSubLevel(int skillId)
-	{
-		final Skill skill = getKnownSkill(skillId);
-		return (skill == null) ? 0 : skill.getSubLevel();
 	}
 	
 	/**
@@ -6030,5 +6079,116 @@ public abstract class Creature extends WorldObject implements IDeletable
 	public void removeBuffInfoTime(BuffInfo info)
 	{
 		_buffFinishTask.removeBuffInfo(info);
+	}
+	
+	// ----------
+	// Tournament Event
+	// ----------
+	private boolean inArenaEvent = false;
+	
+	public void setInArenaEvent(boolean val)
+	{
+		inArenaEvent = val;
+	}
+	
+	public boolean isInArenaEvent()
+	{
+		return inArenaEvent;
+	}
+	
+	private boolean _ArenaAttack;
+	
+	public void setArenaAttack(boolean comm)
+	{
+		_ArenaAttack = comm;
+	}
+	
+	public boolean isArenaAttack()
+	{
+		return _ArenaAttack;
+	}
+	
+	private boolean _Arena1x1;
+	
+	public void setArena1x1(boolean comm)
+	{
+		_Arena1x1 = comm;
+	}
+	
+	public boolean isArena1x1()
+	{
+		return _Arena1x1;
+	}
+	
+	private boolean _Arena3x3;
+	
+	public void setArena3x3(boolean comm)
+	{
+		_Arena3x3 = comm;
+	}
+	
+	public boolean isArena3x3()
+	{
+		return _Arena3x3;
+	}
+	
+	private boolean _Arena5x5;
+	
+	public void setArena5x5(boolean comm)
+	{
+		_Arena5x5 = comm;
+	}
+	
+	public boolean isArena5x5()
+	{
+		return _Arena5x5;
+	}
+	
+	private boolean _Arena9x9;
+	
+	public void setArena9x9(boolean comm)
+	{
+		_Arena9x9 = comm;
+	}
+	
+	public boolean isArena9x9()
+	{
+		return _Arena9x9;
+	}
+	
+	private boolean _ArenaProtection;
+	
+	public void setArenaProtection(boolean comm)
+	{
+		_ArenaProtection = comm;
+	}
+	
+	public boolean isArenaProtection()
+	{
+		return _ArenaProtection;
+	}
+	
+	private boolean _ArenaObserv;
+	
+	public void setArenaObserv(boolean comm)
+	{
+		_ArenaObserv = comm;
+	}
+	
+	public boolean isArenaObserv()
+	{
+		return _ArenaObserv;
+	}
+	
+	private boolean _isStopMov = false;
+	
+	public boolean isStopArena()
+	{
+		return _isStopMov;
+	}
+	
+	public void setStopArena(boolean value)
+	{
+		_isStopMov = value;
 	}
 }

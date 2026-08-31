@@ -70,6 +70,7 @@ import org.l2jmobius.gameserver.enums.ClassId;
 import org.l2jmobius.gameserver.enums.DropType;
 import org.l2jmobius.gameserver.enums.IllegalActionPunishmentType;
 import org.l2jmobius.gameserver.model.Location;
+import org.l2jmobius.gameserver.model.holders.BuffSkillHolder;
 import org.l2jmobius.gameserver.model.holders.DropHolder;
 import org.l2jmobius.gameserver.model.holders.ItemHolder;
 import org.l2jmobius.gameserver.model.item.type.CrystalType;
@@ -760,6 +761,25 @@ public class Config
 	public static double PET_MP_REGEN_MULTIPLIER;
 	public static int VITALITY_CONSUME_BY_MOB;
 	public static int VITALITY_CONSUME_BY_BOSS;
+	
+	/** Buffer */
+	public static String PFIGHTER_SET;
+	public static int[] PFIGHTER_SET_LIST;
+	public static String PMAGE_SET;
+	public static int[] PMAGE_SET_LIST;
+	public static int PBUFFER_MAX_SCHEMES;
+	public static int PBUFFER_MAX_SKILLS;
+	public static int PBUFFER_STATIC_BUFF_COST;
+	public static Map<Integer, BuffSkillHolder> PBUFFER_BUFFLIST;
+	
+	public static List<Integer> PFIGHTER_SKILL_LIST;
+	public static List<Integer> PMAGE_SKILL_LIST;
+	
+	public static boolean PRESTRICT_USE_BUFFER_ON_PVPFLAG;
+	public static boolean PRESTRICT_USE_BUFFER_IN_COMBAT;
+	
+	public static int PVOTE_BUFF_ITEM_ID;
+	public static int PVOTE_BUFF_ITEM_COUNT;
 	
 	// ----------------------------------------------
 	// Buffer [NPC]
@@ -2280,7 +2300,6 @@ public class Config
 			PLAYER_MOVEMENT_BLOCK_TIME = characterConfig.getInt("NpcTalkBlockingTime", 0) * 1000;
 			ABILITY_POINTS_RESET_SP = characterConfig.getLong("AbilityPointsResetSP", 500000000);
 			ABILITY_MAX_POINTS = characterConfig.getInt("AbilityMaxPoints", 16);
-			ABILITY_POINTS_RESET_ADENA = characterConfig.getLong("AbilityPointsResetAdena", 10_000_000);
 			ABILITY_POINTS_ID = characterConfig.getInt("AbilityPointsId", 5575);
 			ABILITY_POINTS_AMMOUNT = characterConfig.getInt("AbilityPointsAmmount", 10000000);
 			
@@ -2636,6 +2655,45 @@ public class Config
 			PET_MP_REGEN_MULTIPLIER = npcConfig.getDouble("PetMpRegenMultiplier", 100) / 100;
 			VITALITY_CONSUME_BY_MOB = npcConfig.getInt("VitalityConsumeByMob", 2250);
 			VITALITY_CONSUME_BY_BOSS = npcConfig.getInt("VitalityConsumeByBoss", 1125);
+			
+			PBUFFER_MAX_SCHEMES = npcConfig.getInt("BufferMaxSchemesPerChar", 4);
+			PBUFFER_MAX_SKILLS = npcConfig.getInt("BufferMaxSkillsPerScheme", 24);
+			PBUFFER_STATIC_BUFF_COST = npcConfig.getInt("BufferStaticCostPerBuff", -1);
+			
+			PFIGHTER_SET = npcConfig.getString("FighterSet", "2375,3500,3501,3502,4422,4423,4424,4425,6648,6649,6650");
+			PMAGE_SET = npcConfig.getString("MageSet", "2375,3500,3501,3502,4422,4423,4424,4425,6648,6649,6650");
+			
+			String[] FighterList = PFIGHTER_SET.split(",");
+			PFIGHTER_SET_LIST = new int[FighterList.length];
+			for (int i = 0; i < FighterList.length; i++)
+			{
+				PFIGHTER_SET_LIST[i] = Integer.parseInt(FighterList[i]);
+			}
+			
+			String[] MageList = PMAGE_SET.split(",");
+			PMAGE_SET_LIST = new int[MageList.length];
+			for (int i = 0; i < MageList.length; i++)
+			{
+				PMAGE_SET_LIST[i] = Integer.parseInt(MageList[i]);
+			}
+			
+			PRESTRICT_USE_BUFFER_ON_PVPFLAG = npcConfig.getBoolean("RestrictUseBufferOnPvPFlag", true);
+			PRESTRICT_USE_BUFFER_IN_COMBAT = npcConfig.getBoolean("RestrictUseBufferInCombat", true);
+			
+			PVOTE_BUFF_ITEM_ID = npcConfig.getInt("VoteBuffItemId", 57);
+			PVOTE_BUFF_ITEM_COUNT = npcConfig.getInt("VoteBuffItemCount", 1);
+			
+			PFIGHTER_SKILL_LIST = new ArrayList<>();
+			for (String skill_id : npcConfig.getString("FighterSkillList", "").split(";"))
+			{
+				PFIGHTER_SKILL_LIST.add(Integer.parseInt(skill_id));
+			}
+			
+			PMAGE_SKILL_LIST = new ArrayList<>();
+			for (String skill_id : npcConfig.getString("MageSkillList", "").split(";"))
+			{
+				PMAGE_SKILL_LIST.add(Integer.parseInt(skill_id));
+			}
 			
 			// Load Rates config file (if exists)
 			final PropertiesParser ratesConfig = new PropertiesParser(RATES_CONFIG_FILE);

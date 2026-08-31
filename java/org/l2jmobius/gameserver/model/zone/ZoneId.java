@@ -49,6 +49,7 @@ public enum ZoneId
 	FISHING,
 	UNDYING,
 	TAX,
+	TOURNAMENT,
 	NO_ZERG;
 	
 	public static int getZoneCount()

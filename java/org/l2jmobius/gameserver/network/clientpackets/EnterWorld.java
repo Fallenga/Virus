@@ -517,10 +517,12 @@ public class EnterWorld extends ClientPacket
 		}
 		else if (Config.SERVER_NEWS)
 		{
-			final String serverNews = HtmCache.getInstance().getHtm(player, "data/html/servnews.htm");
+			final String serverNews = HtmCache.getInstance().getHtm(player, "data/html/info/welcome.htm");
 			if (serverNews != null)
 			{
-				player.sendPacket(new NpcHtmlMessage(serverNews));
+				final NpcHtmlMessage html = new NpcHtmlMessage(serverNews);
+				html.replace("%name%", player.getName());
+				player.sendPacket(html);
 			}
 		}
 		

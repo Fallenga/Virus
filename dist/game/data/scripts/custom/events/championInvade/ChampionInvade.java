@@ -20,6 +20,7 @@ import org.l2jmobius.gameserver.data.xml.NpcData;
 import org.l2jmobius.gameserver.model.Spawn;
 import org.l2jmobius.gameserver.model.actor.Npc;
 import org.l2jmobius.gameserver.model.actor.templates.NpcTemplate;
+import org.l2jmobius.gameserver.network.serverpackets.Earthquake;
 import org.l2jmobius.gameserver.util.Broadcast;
 
 import handlers.admincommandhandlers.AdminChampionInvade;
@@ -42,11 +43,11 @@ public class ChampionInvade
 	
 	public static void StartedEvent() // Iniciar Evento
 	{
-		Broadcast.toAllOnlinePlayers("[Champion Invade Event]: Duracion: " + Config.EVENT_CHAMPION_FARM_TIME + " minuto(s)!");
+		Broadcast.toAllOnlinePlayers("[Monastery Bonus]: Duracion: " + Config.EVENT_CHAMPION_FARM_TIME + " minuto(s)!");
 		_aborted = false;
 		_started = true;
 		_finish = false;
-		
+		Broadcast.toAllOnlinePlayers(new Earthquake(0, 0, 0, 14, 3));
 		// Spawnear los monstruos del archivo XML
 		spawnMonastery();
 		
@@ -64,8 +65,8 @@ public class ChampionInvade
 		// Despawnear/Eliminar todos los monstruos invocados y detener sus respawns
 		despawnMonastery();
 		
-		Broadcast.toAllOnlinePlayers("[Champion Invade Event]: Finalizado!");
-		Broadcast.toAllOnlinePlayers("[Champion Invade Event]: Proximo Evento en " + InitialChampionInvade.getInstance().getNextTime() + " horas!");
+		Broadcast.toAllOnlinePlayers("[Monastery Bonus]: Finalizado!");
+		Broadcast.toAllOnlinePlayers("[Monastery Bonus]: Proximo Evento en " + InitialChampionInvade.getInstance().getNextTime() + " horas!");
 		
 		try
 		{
@@ -92,7 +93,7 @@ public class ChampionInvade
 		final File xmlFile = new File("data/Monastery.xml");
 		if (!xmlFile.exists())
 		{
-			LOGGER.severe("[Champion Invade]: No se pudo encontrar el archivo XML de spawns en: " + xmlFile.getAbsolutePath());
+			LOGGER.severe("[Monastery Bonus]: No se pudo encontrar el archivo XML de spawns en: " + xmlFile.getAbsolutePath());
 			return;
 		}
 		
@@ -162,11 +163,11 @@ public class ChampionInvade
 					}
 				}
 			}
-			LOGGER.info("[Champion Invade]: Exito. Se han creado " + _activeSpawns.size() + " puntos de spawn de Monastery.");
+			LOGGER.info("[Monastery Bonus]: Exito. Se han creado " + _activeSpawns.size() + " puntos de spawn de Monastery.");
 		}
 		catch (Exception e)
 		{
-			LOGGER.log(Level.SEVERE, "[Champion Invade]: Error al procesar el archivo Monastery.xml: ", e);
+			LOGGER.log(Level.SEVERE, "[Monastery Bonus]: Error al procesar el archivo Monastery.xml: ", e);
 		}
 	}
 	
@@ -180,7 +181,7 @@ public class ChampionInvade
 			final NpcTemplate template = NpcData.getInstance().getTemplate(npcId);
 			if (template == null)
 			{
-				LOGGER.warning("[Champion Invade]: No se encontro la plantilla de datos para el NPC: " + npcId);
+				LOGGER.warning("[Monastery Bonus]: No se encontro la plantilla de datos para el NPC: " + npcId);
 				return;
 			}
 			
@@ -196,7 +197,7 @@ public class ChampionInvade
 		}
 		catch (Exception e)
 		{
-			LOGGER.log(Level.SEVERE, "[Champion Invade]: Error spawneando ID " + npcId + ": ", e);
+			LOGGER.log(Level.SEVERE, "[Monastery Bonus]: Error spawneando ID " + npcId + ": ", e);
 		}
 	}
 	
@@ -225,12 +226,12 @@ public class ChampionInvade
 				}
 				catch (Exception e)
 				{
-					LOGGER.log(Level.WARNING, "[Champion Invade]: Error removiendo un spawn de Monastery: ", e);
+					LOGGER.log(Level.WARNING, "[Monastery Bonus]: Error removiendo un spawn de Monastery: ", e);
 				}
 			}
 		}
 		_activeSpawns.clear(); // Limpiamos la lista para el próximo evento
-		LOGGER.info("[Champion Invade]: Se han removido " + count + " monstruos activos de Monastery.");
+		LOGGER.info("[Monastery Bonus]: Se han removido " + count + " monstruos activos de Monastery.");
 	}
 	
 	protected static void waiter(long interval)
@@ -246,15 +247,15 @@ public class ChampionInvade
 			{
 				if (seconds == 3600)
 				{
-					Broadcast.toAllOnlinePlayers("[Champion Invade Event]: " + (seconds / 3600) + " hora(s) para finalizar!");
+					Broadcast.toAllOnlinePlayers("[Monastery Bonus Event]: " + (seconds / 3600) + " hora(s) para finalizar!");
 				}
 				else if ((seconds == 60) || (seconds == 120) || (seconds == 180) || (seconds == 240) || (seconds == 300) || (seconds == 600) || (seconds == 900) || (seconds == 1800))
 				{
-					Broadcast.toAllOnlinePlayers("[Champion Invade Event]: " + (seconds / 60) + " minuto(s) para finalizar!");
+					Broadcast.toAllOnlinePlayers("[Monastery Bonus Event]: " + (seconds / 60) + " minuto(s) para finalizar!");
 				}
 				else if ((seconds == 1) || (seconds == 2) || (seconds == 3) || (seconds == 10) || (seconds == 15) || (seconds == 30))
 				{
-					Broadcast.toAllOnlinePlayers("[Champion Invade Event]: " + seconds + " segundo(s) para finalizar!");
+					Broadcast.toAllOnlinePlayers("[Monastery Bonus Event]: " + seconds + " segundo(s) para finalizar!");
 				}
 			}
 			

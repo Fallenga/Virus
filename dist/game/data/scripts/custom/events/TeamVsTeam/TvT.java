@@ -68,7 +68,6 @@ import org.l2jmobius.gameserver.model.quest.Event;
 import org.l2jmobius.gameserver.model.quest.QuestTimer;
 import org.l2jmobius.gameserver.model.skill.CommonSkill;
 import org.l2jmobius.gameserver.model.skill.Skill;
-import org.l2jmobius.gameserver.model.skill.SkillCaster;
 import org.l2jmobius.gameserver.model.zone.ZoneId;
 import org.l2jmobius.gameserver.model.zone.ZoneType;
 import org.l2jmobius.gameserver.network.NpcStringId;
@@ -100,23 +99,50 @@ public class TvT extends Event
 	// Skills
 	private static final SkillHolder[] FIGHTER_BUFFS =
 	{
-		new SkillHolder(4322, 1), // Wind Walk
-		new SkillHolder(4323, 1), // Shield
-		new SkillHolder(5637, 1), // Magic Barrier
-		new SkillHolder(4324, 1), // Bless the Body
-		new SkillHolder(4325, 1), // Vampiric Rage
-		new SkillHolder(4326, 1), // Regeneration
-		new SkillHolder(5632, 1), // Haste
+		new SkillHolder(1204, 2), // Wind Walk
+		new SkillHolder(1040, 3), // Shield
+		new SkillHolder(1068, 3), // Magic Barrier
+		new SkillHolder(1036, 2), // Bless the Body
+		new SkillHolder(1045, 6), // Vampiric Rage
+		new SkillHolder(1240, 3), // Regeneration
+		new SkillHolder(1242, 3), // Haste
+		new SkillHolder(1268, 4), // Vampiric Rage
+		new SkillHolder(1062, 2), // Shield
+		new SkillHolder(1077, 3), // Magic Barrier
+		new SkillHolder(271, 2), // Bless the Body
+		new SkillHolder(274, 1), // Vampiric Rage
+		new SkillHolder(275, 1), // Regeneration
+		new SkillHolder(310, 1), // Haste
+		new SkillHolder(264, 1), // Haste
+		new SkillHolder(267, 1), // Haste
+		new SkillHolder(304, 1), // Haste
+		new SkillHolder(269, 1), // Haste
+		new SkillHolder(268, 1), // Haste
+		new SkillHolder(1363, 1), // Haste
+		new SkillHolder(4699, 1), // Haste
 	};
 	private static final SkillHolder[] MAGE_BUFFS =
 	{
-		new SkillHolder(4322, 1), // Wind Walk
-		new SkillHolder(4323, 1), // Shield
-		new SkillHolder(5637, 1), // Magic Barrier
-		new SkillHolder(4328, 1), // Bless the Soul
-		new SkillHolder(4329, 1), // Acumen
-		new SkillHolder(4330, 1), // Concentration
-		new SkillHolder(4331, 1), // Empower
+		new SkillHolder(1204, 2), // Wind Walk
+		new SkillHolder(1040, 3), // Shield
+		new SkillHolder(1036, 2), // Bless the Body
+		new SkillHolder(1045, 6), // Vampiric Rage
+		new SkillHolder(1048, 6), // Regeneration
+		new SkillHolder(1085, 3), // Haste
+		new SkillHolder(1059, 3), // Vampiric Rage
+		new SkillHolder(1062, 2), // Shield
+		new SkillHolder(1303, 2), // Magic Barrier
+		new SkillHolder(1078, 6), // Bless the Body
+		new SkillHolder(273, 1), // Vampiric Rage
+		new SkillHolder(276, 1), // Regeneration
+		new SkillHolder(365, 1), // Haste
+		new SkillHolder(264, 1), // Haste
+		new SkillHolder(267, 1), // Haste
+		new SkillHolder(304, 1), // Haste
+		new SkillHolder(268, 1), // Haste
+		new SkillHolder(349, 1), // Haste
+		new SkillHolder(1355, 1), // Haste
+		new SkillHolder(4703, 3), // Haste
 	};
 	private static final SkillHolder GHOST_WALKING = new SkillHolder(100000, 1); // Custom Ghost Walking
 	
@@ -135,16 +161,18 @@ public class TvT extends Event
 	private static final ZoneType BLUE_PEACE_ZONE = ZoneManager.getInstance().getZoneByName("colosseum_peace1");
 	private static final ZoneType RED_PEACE_ZONE = ZoneManager.getInstance().getZoneByName("colosseum_peace2");
 	// Settings
-	private static final int REGISTRATION_TIME = 10; // Minutes
+	private static final int REGISTRATION_TIME = 5; // Minutes
 	private static final int WAIT_TIME = 1; // Minutes
-	private static final int FIGHT_TIME = 20; // Minutes
+	private static final int FIGHT_TIME = 15; // Minutes
 	private static final int INACTIVITY_TIME = 2; // Minutes
-	public static final int MINIMUM_PARTICIPANT_LEVEL = 76;
-	public static final int MAXIMUM_PARTICIPANT_LEVEL = 200;
-	private static final int MINIMUM_PARTICIPANT_COUNT = 4;
-	private static final int MAXIMUM_PARTICIPANT_COUNT = 24; // Scoreboard has 25 slots
+	public static final int MINIMUM_PARTICIPANT_LEVEL = 60;
+	public static final int MAXIMUM_PARTICIPANT_LEVEL = 90;
+	private static final int MINIMUM_PARTICIPANT_COUNT = 2;
+	private static final int MAXIMUM_PARTICIPANT_COUNT = 300; // Scoreboard has 25 slots
 	private static final int PARTY_MEMBER_COUNT = 7;
-	public static final ItemHolder REWARD = new ItemHolder(57, 100000); // Adena
+	public static final ItemHolder REWARD = new ItemHolder(4355, 3); // Event Coin
+	public static final ItemHolder REWARD_TIED = new ItemHolder(4355, 1); // Event Coin (1 para empate)
+	public static final ItemHolder REWARD_LOOSER = new ItemHolder(4355, 1); // Event Coin (1 para perdedor)
 	// Misc
 	public static final Map<Player, Integer> PLAYER_SCORES = new ConcurrentHashMap<>();
 	public static final Set<Player> PLAYER_LIST = ConcurrentHashMap.newKeySet();
@@ -287,14 +315,14 @@ public class TvT extends Event
 						{
 							for (SkillHolder skill : MAGE_BUFFS)
 							{
-								SkillCaster.triggerCast(npc, player, skill.getSkill());
+								skill.getSkill().applyEffects(npc, player); // Cambio aquí
 							}
 						}
 						else
 						{
 							for (SkillHolder skill : FIGHTER_BUFFS)
 							{
-								SkillCaster.triggerCast(npc, player, skill.getSkill());
+								skill.getSkill().applyEffects(npc, player); // Cambio aquí
 							}
 						}
 						player.setCurrentHp(player.getMaxHp());
@@ -537,6 +565,8 @@ public class TvT extends Event
 				{
 					final Skill skill = CommonSkill.FIREWORK.getSkill();
 					broadcastScreenMessageWithEffect("Team Blue won the event!", 7);
+					
+					// Recompensa para el ganador (Azul)
 					for (Player participant : BLUE_TEAM)
 					{
 						if ((participant != null) && (participant.getInstanceWorld() == PVP_WORLD))
@@ -546,12 +576,24 @@ public class TvT extends Event
 							giveItems(participant, REWARD);
 						}
 					}
+					
+					// Recompensa para el perdedor (Rojo)
+					for (Player participant : RED_TEAM)
+					{
+						if ((participant != null) && (participant.getInstanceWorld() == PVP_WORLD))
+						{
+							giveItems(participant, REWARD_LOOSER);
+						}
+					}
 				}
+				
 				// Team Red wins.
 				else if ((RED_SCORE > BLUE_SCORE) && (!TEAM_FORFEIT))
 				{
 					final Skill skill = CommonSkill.FIREWORK.getSkill();
 					broadcastScreenMessageWithEffect("Team Red won the event!", 7);
+					
+					// Recompensa para el ganador (Rojo)
 					for (Player participant : RED_TEAM)
 					{
 						if ((participant != null) && (participant.getInstanceWorld() == PVP_WORLD))
@@ -561,14 +603,26 @@ public class TvT extends Event
 							giveItems(participant, REWARD);
 						}
 					}
+					
+					// Recompensa para el perdedor (Azul)
+					for (Player participant : BLUE_TEAM)
+					{
+						if ((participant != null) && (participant.getInstanceWorld() == PVP_WORLD))
+						{
+							giveItems(participant, REWARD_LOOSER);
+						}
+					}
 				}
 				// Tie.
 				else
 				{
 					broadcastScreenMessageWithEffect("The event ended with a tie!", 7);
+					final Skill skill = CommonSkill.FIREWORK.getSkill();
 					for (Player participant : PLAYER_LIST)
 					{
+						participant.broadcastPacket(new MagicSkillUse(participant, participant, skill.getId(), skill.getLevel(), skill.getHitTime(), skill.getReuseDelay()));
 						participant.broadcastSocialAction(13);
+						giveItems(participant, REWARD_TIED);
 					}
 				}
 				startQuestTimer("ScoreBoard", 3500, null, null);
@@ -641,6 +695,16 @@ public class TvT extends Event
 						// Reset existing activity timers.
 						resetActivityTimers(player); // In case player died in peace zone.
 					}
+					// Restore the event buffs after teleportation/revival has completed.
+					startQuestTimer("RestoreEventBuffs", 500, null, player);
+				}
+				break;
+			}
+			case "RestoreEventBuffs":
+			{
+				if ((player != null) && player.isOnEvent() && !player.isDead())
+				{
+					restoreEventBuffs(player);
 				}
 				break;
 			}
@@ -931,6 +995,31 @@ public class TvT extends Event
 		cancelQuestTimer("KickPlayerWarning" + player.getObjectId(), null, player);
 		startQuestTimer("KickPlayer" + player.getObjectId(), IS_STARTED() ? INACTIVITY_TIME * 60000 : (INACTIVITY_TIME * 60000) + (WAIT_TIME * 60000), null, player);
 		startQuestTimer("KickPlayerWarning" + player.getObjectId(), IS_STARTED() ? (INACTIVITY_TIME / 2) * 60000 : ((INACTIVITY_TIME / 2) * 60000) + (WAIT_TIME * 60000), null, player);
+	}
+	
+	/**
+	 * Restores the standard TvT buffs and vital points after a participant respawns.
+	 * @param player the participant to restore
+	 */
+	private void restoreEventBuffs(Player player)
+	{
+		if ((player == null) || !player.isOnEvent() || player.isDead())
+		{
+			return;
+		}
+		
+		final SkillHolder[] buffs = player.isMageClass() ? MAGE_BUFFS : FIGHTER_BUFFS;
+		for (SkillHolder skill : buffs)
+		{
+			if ((skill != null) && (skill.getSkill() != null))
+			{
+				skill.getSkill().applyEffects(player, player);
+			}
+		}
+		
+		player.setCurrentHp(player.getMaxHp());
+		player.setCurrentMp(player.getMaxMp());
+		player.setCurrentCp(player.getMaxCp());
 	}
 	
 	private void manageForfeit()

@@ -25,12 +25,18 @@ import org.l2jmobius.gameserver.enums.Race;
 import org.l2jmobius.gameserver.model.actor.Npc;
 import org.l2jmobius.gameserver.model.actor.Player;
 import org.l2jmobius.gameserver.model.actor.templates.NpcTemplate;
+import org.l2jmobius.gameserver.model.item.instance.Item;
+import org.l2jmobius.gameserver.network.serverpackets.InventoryUpdate;
 
 /**
- * @author Lucas
+ * @author Lucas Modified by: [Tu nombre]
  */
 public class ChangeSkinManager extends Npc
 {
+	// Constantes para el item Templar Coin
+	private static final int TEMPLAR_COIN_ID = 4358;
+	private static final int TEMPLAR_COIN_COST = 300;
+	
 	public enum Races
 	{
 		FIGHTER(Race.HUMAN, ClassId.FIGHTER),
@@ -46,7 +52,6 @@ public class ChangeSkinManager extends Npc
 		ERTHEIA(Race.ERTHEIA, ClassId.ERTHEIA_WIZARD);
 		
 		private final Race _race;
-		
 		private final ClassId _classId;
 		
 		private Races(Race race, ClassId classId)
@@ -79,11 +84,11 @@ public class ChangeSkinManager extends Npc
 			return;
 		}
 		
-		if (!player.hasPremiumStatus())
+		// Verificar si el jugador tiene suficientes Templar Coins
+		if (!hasEnoughTemplarCoins(player))
 		{
-			player.sendMessage("Necesitas tener la cuenta Premium para este beneficio");
+			player.sendMessage("Necesitas " + TEMPLAR_COIN_COST + " Templar Coins  para cambiar de skin.");
 			return;
-			
 		}
 		
 		Races race = null;
@@ -132,10 +137,10 @@ public class ChangeSkinManager extends Npc
 		{
 			player.getAppearance().setFemale();
 			race = Races.ERTHEIA;
-			
 		}
 		else if (command.startsWith("BackMainSkin"))
 		{
+			// Restaurar skin original - sin costo
 			player.getAppearance().setMale();
 			player.setCustomClassSkin(-1);
 			player.setCustomRaceSkin(-1);
@@ -144,8 +149,68 @@ public class ChangeSkinManager extends Npc
 			return;
 		}
 		
-		setRaceCustomSkin(player, race);
-		refreshPlayer(player);
+		if (race != null)
+		{
+			// Restar los Templar Coins del jugador
+			if (removeTemplarCoins(player))
+			{
+				setRaceCustomSkin(player, race);
+				refreshPlayer(player);
+				player.sendMessage("¡Skin cambiado exitosamente! Has gastado " + TEMPLAR_COIN_COST + " Templar Coin.");
+			}
+			else
+			{
+				player.sendMessage("Error al procesar el pago. Contacta con un administrador.");
+			}
+		}
+	}
+	
+	/**
+	 * Verifica si el jugador tiene suficientes Templar Coins
+	 */
+	private boolean hasEnoughTemplarCoins(Player player)
+	{
+		Item templarCoin = player.getInventory().getItemByItemId(TEMPLAR_COIN_ID);
+		if (templarCoin == null)
+		{
+			return false;
+		}
+		return templarCoin.getCount() >= TEMPLAR_COIN_COST;
+	}
+	
+	/**
+	 * Elimina los Templar Coins del inventario del jugador
+	 */
+	private boolean removeTemplarCoins(Player player)
+	{
+		// Obtener el item del inventario
+		Item templarCoin = player.getInventory().getItemByItemId(TEMPLAR_COIN_ID);
+		if ((templarCoin == null) || (templarCoin.getCount() < TEMPLAR_COIN_COST))
+		{
+			return false;
+		}
+		
+		// Intentar destruir el item - en Classic Interlude esto devuelve el Item o null
+		Item destroyedItem = player.getInventory().destroyItemByItemId("ChangeSkin", TEMPLAR_COIN_ID, TEMPLAR_COIN_COST, player, null);
+		
+		// Si el item fue destruido exitosamente (no es null), actualizar inventario
+		if (destroyedItem != null)
+		{
+			// Actualizar el inventario del cliente
+			InventoryUpdate iu = new InventoryUpdate();
+			iu.addModifiedItem(templarCoin);
+			player.sendPacket(iu);
+			
+			// Enviar la lista de items actualizada - con el parámetro booleano
+			player.sendItemList(false); // false = no force update, true = force update
+			
+			// También puedes usar true si quieres forzar la actualización:
+			// player.sendItemList(true);
+			
+			return true;
+		}
+		
+		return false;
 	}
 	
 	private static void setRaceCustomSkin(Player player, Races race)

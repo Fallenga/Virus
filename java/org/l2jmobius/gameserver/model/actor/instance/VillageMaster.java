@@ -602,7 +602,7 @@ public class VillageMaster extends Folk
 					}
 					if (player.isSubClassPrimera())
 					{
-						Broadcast.toAllOnlinePlayers("Felicitaciones a " + player.getName() + " por su primera subclass");
+						Broadcast.toAllOnlinePlayers("Felicitaciones a " + player.getName() + " por realizar la subclass");
 					}
 					if (player.isSubClassSegunda())
 					{
