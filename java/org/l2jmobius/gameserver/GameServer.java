@@ -158,6 +158,7 @@ import org.l2jmobius.gameserver.instancemanager.games.MonsterRaceManager;
 import org.l2jmobius.gameserver.model.World;
 import org.l2jmobius.gameserver.model.events.EventDispatcher;
 import org.l2jmobius.gameserver.model.events.EventType;
+import org.l2jmobius.gameserver.model.events.clankorean.ClanKoreanEvent;
 import org.l2jmobius.gameserver.model.events.impl.OnServerStart;
 import org.l2jmobius.gameserver.model.events.tournament.properties.ArenaConfig;
 import org.l2jmobius.gameserver.model.events.tournament.properties.ArenaEvent;
@@ -222,7 +223,8 @@ public class GameServer
 		
 		printSection("Database");
 		DatabaseFactory.init();
-		
+		// Inicializa el evento Clan Korean 5x5.
+		ClanKoreanEvent.init();
 		printSection("ThreadPool");
 		ThreadPool.init();
 		
@@ -484,9 +486,8 @@ public class GameServer
 			}
 			else if (ArenaConfig.TOURNAMENT_EVENT_START)
 			{
-				LOGGER.info("Tournament Event is enabled (Manual start mode).");
-				ArenaTask.spawnNpc1();
-				ArenaTask.spawnNpc2();
+				LOGGER.info("Tournament Event is enabled (Start on server boot mode).");
+				ThreadPool.execute(ArenaTask::SpawnEvent);
 			}
 			else
 			{

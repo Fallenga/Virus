@@ -22,6 +22,7 @@ package handlers.voicedcommandhandlers;
 
 import org.l2jmobius.gameserver.handler.IVoicedCommandHandler;
 import org.l2jmobius.gameserver.model.actor.Player;
+import org.l2jmobius.gameserver.model.events.tournament.properties.ArenaTask;
 import org.l2jmobius.gameserver.model.zone.ZoneId;
 
 /**
@@ -31,7 +32,7 @@ public class TournamentCmd implements IVoicedCommandHandler
 {
 	private static final String[] VOICED_COMMANDS =
 	{
-		"tournament"
+		"tour"
 	};
 	
 	@Override
@@ -48,7 +49,12 @@ public class TournamentCmd implements IVoicedCommandHandler
 				activeChar.sendMessage("You can't use the command in Duel Mode.");
 				return false;
 			}
-			else if (activeChar.isNoble())
+			else if (!ArenaTask.is_started())
+			{
+				activeChar.sendMessage("El Tournament no se encuentra activo.");
+				return false;
+			}
+			else if (!activeChar.isNoble())
 			{
 				activeChar.sendMessage("Solo es exclusivo para Nobless");
 				return false;
@@ -89,9 +95,9 @@ public class TournamentCmd implements IVoicedCommandHandler
 				activeChar.sendMessage("You are Dead? week up ");
 				return false;
 			}
-			if (activeChar.getInventory().getItemByItemId(57) == null)
+			if (activeChar.getInventory().getInventoryItemCount(57, -1) < 3000000)
 			{
-				activeChar.sendMessage("Gastaste 300.000 de adena");
+				activeChar.sendMessage("Necesitas 3.00.0000 Adena para viajar.");
 				return false;
 			}
 			int placex;
@@ -102,10 +108,11 @@ public class TournamentCmd implements IVoicedCommandHandler
 			placey = 242575;
 			placez = 1680;
 			
-			activeChar.teleToLocation(placex, placey, placez);
-			activeChar.sendMessage("Usted fue transportado a Tournament Zone!");
-			activeChar.getInventory().destroyItemByItemId("Adena", 57, 300000, activeChar, activeChar.getTarget());
-			activeChar.sendMessage("Ha desaparecido 100.000 de adena");
+			if (activeChar.destroyItemByItemId("TournamentTeleport", 57, 3000000, activeChar, true))
+			{
+				activeChar.teleToLocation(placex, placey, placez);
+				activeChar.sendMessage("Fuiste transportado a la zona Tournament. Costo: 300.000 Adena.");
+			}
 		}
 		return true;
 	}

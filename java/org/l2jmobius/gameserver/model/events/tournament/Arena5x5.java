@@ -1,7 +1,7 @@
 package org.l2jmobius.gameserver.model.events.tournament;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -15,6 +15,7 @@ import org.l2jmobius.gameserver.model.actor.Player;
 import org.l2jmobius.gameserver.model.actor.Summon;
 import org.l2jmobius.gameserver.model.actor.instance.Pet;
 import org.l2jmobius.gameserver.model.events.tournament.properties.ArenaConfig;
+import org.l2jmobius.gameserver.model.events.tournament.properties.ArenaRanking;
 import org.l2jmobius.gameserver.model.events.tournament.properties.ArenaTask;
 import org.l2jmobius.gameserver.model.skill.BuffInfo;
 import org.l2jmobius.gameserver.model.zone.ZoneId;
@@ -31,11 +32,11 @@ public class Arena5x5 implements Runnable
 	// Arenas
 	Arena[] arenas = new Arena[ArenaConfig.ARENA_EVENT_COUNT_5X5];
 	// list of fights going on
-	Map<Integer, String> fights = new HashMap<>(ArenaConfig.ARENA_EVENT_COUNT_5X5);
+	Map<Integer, String> fights = new ConcurrentHashMap<>(ArenaConfig.ARENA_EVENT_COUNT_5X5);
 	
 	public Arena5x5()
 	{
-		registered = new ArrayList<>();
+		registered = new CopyOnWriteArrayList<>();
 		int[] coord;
 		for (int i = 0; i < ArenaConfig.ARENA_EVENT_COUNT_5X5; i++)
 		{
@@ -160,9 +161,7 @@ public class Arena5x5 implements Runnable
 			List<Pair> opponents = selectOpponents();
 			if ((opponents != null) && (opponents.size() == 2))
 			{
-				Thread T = new Thread(new EvtArenaTask(opponents));
-				T.setDaemon(true);
-				T.start();
+				ThreadPool.execute(new EvtArenaTask(opponents));
 			}
 			try
 			{
@@ -176,7 +175,7 @@ public class Arena5x5 implements Runnable
 	
 	private List<Pair> selectOpponents()
 	{
-		List<Pair> opponents = new ArrayList<>();
+		List<Pair> opponents = new CopyOnWriteArrayList<>();
 		Pair pairOne = null, pairTwo = null;
 		int tries = 3;
 		do
@@ -278,22 +277,22 @@ public class Arena5x5 implements Runnable
 		{
 			if (((leader == null) || !leader.isOnline()))
 			{
-				if ((assist != null) || assist.isOnline())
+				if ((assist != null) && assist.isOnline())
 				{
 					assist.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist2 != null) || assist2.isOnline())
+				if ((assist2 != null) && assist2.isOnline())
 				{
 					assist2.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist3 != null) || assist3.isOnline())
+				if ((assist3 != null) && assist3.isOnline())
 				{
 					assist3.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist4 != null) || assist4.isOnline())
+				if ((assist4 != null) && assist4.isOnline())
 				{
 					assist4.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
@@ -301,26 +300,26 @@ public class Arena5x5 implements Runnable
 				return false;
 			}
 			
-			else if ((((assist == null) || !assist.isOnline()) || ((assist2 == null) || !assist2.isOnline()) || ((assist3 == null) || !assist3.isOnline()) || (((assist4 == null) || !assist4.isOnline()) && ((leader != null) || leader.isOnline()))))
+			else if ((((assist == null) || !assist.isOnline()) || ((assist2 == null) || !assist2.isOnline()) || ((assist3 == null) || !assist3.isOnline()) || (((assist4 == null) || !assist4.isOnline()) && ((leader != null) && leader.isOnline()))))
 			{
 				leader.sendMessage("Tournament: You participation in Event was Canceled.");
 				
-				if ((assist != null) || assist.isOnline())
+				if ((assist != null) && assist.isOnline())
 				{
 					assist.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist2 != null) || assist2.isOnline())
+				if ((assist2 != null) && assist2.isOnline())
 				{
 					assist2.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist3 != null) || assist3.isOnline())
+				if ((assist3 != null) && assist3.isOnline())
 				{
 					assist3.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist4 != null) || assist4.isOnline())
+				if ((assist4 != null) && assist4.isOnline())
 				{
 					assist4.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
@@ -638,6 +637,7 @@ public class Arena5x5 implements Runnable
 			if ((leader != null) && leader.isOnline())
 			{
 				leader.addItem("Arena_Event", ArenaConfig.ARENA_REWARD_ID, ArenaConfig.ARENA_WIN_REWARD_COUNT_5X5, leader, true);
+				ArenaRanking.addRank5x5(leader);
 			}
 			
 			if ((assist != null) && assist.isOnline())
@@ -1259,7 +1259,7 @@ public class Arena5x5 implements Runnable
 		
 		private boolean check()
 		{
-			return (pairOne.isDead() && pairTwo.isDead());
+			return ArenaTask.is_started() && pairOne.isDead() && pairTwo.isDead();
 		}
 		
 		private void portPairsToArena()
@@ -1380,7 +1380,7 @@ public class Arena5x5 implements Runnable
 	
 	public static Map<Integer, Player> allParticipants()
 	{
-		Map<Integer, Player> all = new HashMap<>();
+		Map<Integer, Player> all = new ConcurrentHashMap<>();
 		if (getRegisteredCount() > 0)
 		{
 			for (Pair dp : registered)

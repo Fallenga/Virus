@@ -21,7 +21,7 @@
  */
 package handlers.communityboard;
 
-import static org.l2jmobius.gameserver.util.FormatUtil.formatAdena;
+import static org.l2jmobius.commons.util.FormatUtil.formatAdena;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -51,8 +51,8 @@ import org.l2jmobius.gameserver.model.cubic.Cubic;
 import org.l2jmobius.gameserver.model.effects.EffectType;
 import org.l2jmobius.gameserver.model.events.Containers;
 import org.l2jmobius.gameserver.model.events.EventType;
-import org.l2jmobius.gameserver.model.events.holders.actor.player.OnPlayerLogout;
 import org.l2jmobius.gameserver.model.events.impl.IBaseEvent;
+import org.l2jmobius.gameserver.model.events.impl.creature.player.OnPlayerLogout;
 import org.l2jmobius.gameserver.model.events.listeners.ConsumerEventListener;
 import org.l2jmobius.gameserver.model.skill.ServitorShareConditions;
 import org.l2jmobius.gameserver.model.skill.Skill;
@@ -69,9 +69,10 @@ public class BufferBoard implements IParseBoardHandler
 	private static final Logger LOG = Logger.getLogger(BufferBoard.class.getName());
 	
 	private static final String TITLE = "Community Buffer";
+	private static final String COMMAND = "_bbstemplarbuffer";
 	private static final String[] COMMANDS =
 	{
-		"_bbsbuffer"
+		COMMAND
 	};
 	
 	private static final int MAX_SCHEME_BUFFS = Config.BUFFS_MAX_AMOUNT;
@@ -164,7 +165,7 @@ public class BufferBoard implements IParseBoardHandler
 			return false;
 		}
 		
-		final String params = command.startsWith("_bbsbuffer;") ? command.substring(11) : "";
+		final String params = command.startsWith(COMMAND + ";") ? command.substring(COMMAND.length() + 1) : "";
 		String html = null;
 		
 		try
@@ -380,7 +381,7 @@ public class BufferBoard implements IParseBoardHandler
 		final boolean showNoPetMsg = SHOW_NO_PET.getOrDefault(player.getObjectId(), false);
 		if (showNoPetMsg && !hasSummon)
 		{
-			html.append("<td><button value=\"\" action=\"bypass _bbsbuffer;togglePet\" width=35 height=35 back=\"L2UI_CT1.SystemMenuWnd_df_ReStart\" fore=\"L2UI_CT1.SystemMenuWnd_df_ReStart\"></td>");
+			html.append("<td><button value=\"\" action=\"bypass _bbstemplarbuffer;togglePet\" width=35 height=35 back=\"L2UI_CT1.SystemMenuWnd_df_ReStart\" fore=\"L2UI_CT1.SystemMenuWnd_df_ReStart\"></td>");
 			html.append("<td width=90 align=center><font color=FF6666 name=__SYSTEMWORLDFONT>No pet summoned!</font></td>");
 		}
 		else
@@ -388,11 +389,11 @@ public class BufferBoard implements IParseBoardHandler
 			SHOW_NO_PET.remove(player.getObjectId());
 			if (hasSummon)
 			{
-				html.append("<td><button value=\"").append(petMode ? "To Player" : "To Pet").append("\" action=\"bypass _bbsbuffer;togglePet\" width=90 height=37 back=\"L2UI_ct1.button_df\" fore=\"L2UI_ct1.button_df\"></td>");
+				html.append("<td><button value=\"").append(petMode ? "To Player" : "To Pet").append("\" action=\"bypass _bbstemplarbuffer;togglePet\" width=90 height=37 back=\"L2UI_ct1.button_df\" fore=\"L2UI_ct1.button_df\"></td>");
 			}
 			else
 			{
-				html.append("<td><button value=\"To Pet\" action=\"bypass _bbsbuffer;togglePet\" width=90 height=37 back=\"L2UI_ct1.button_df\" fore=\"L2UI_ct1.button_df\"></td>");
+				html.append("<td><button value=\"To Pet\" action=\"bypass _bbstemplarbuffer;togglePet\" width=90 height=37 back=\"L2UI_ct1.button_df\" fore=\"L2UI_ct1.button_df\"></td>");
 			}
 		}
 		
@@ -418,12 +419,12 @@ public class BufferBoard implements IParseBoardHandler
 		{
 			if (schemes.size() < Config.SCHEMES_PER_PLAYER)
 			{
-				html.append(menuItem("Icon.skill6439", "New Scheme", null, "_bbsbuffer;create_1"));
+				html.append(menuItem("Icon.skill6439", "New Scheme", null, "_bbstemplarbuffer;create_1"));
 			}
 			if (!schemes.isEmpty())
 			{
-				html.append(menuItem("Icon.color_name_i00", "Edit Scheme", null, "_bbsbuffer;edit_1"));
-				html.append(menuItem("Icon.etc_ssq_i00", "Delete Scheme", null, "_bbsbuffer;delete_1"));
+				html.append(menuItem("Icon.color_name_i00", "Edit Scheme", null, "_bbstemplarbuffer;edit_1"));
+				html.append(menuItem("Icon.etc_ssq_i00", "Delete Scheme", null, "_bbstemplarbuffer;delete_1"));
 			}
 		}
 		// Your Schemes sub-header
@@ -443,7 +444,7 @@ public class BufferBoard implements IParseBoardHandler
 			{
 				for (String[] scheme : schemes)
 				{
-					html.append(menuItem("Icon.skill1374", scheme[1], "Price: " + schemePrice, "_bbsbuffer;cast;" + scheme[0]));
+					html.append(menuItem("Icon.skill1374", scheme[1], "Price: " + schemePrice, "_bbstemplarbuffer;cast;" + scheme[0]));
 				}
 			}
 		}
@@ -464,11 +465,11 @@ public class BufferBoard implements IParseBoardHandler
 				html.append("<tr><td align=center><br1><table><tr>");
 				if (Config.ENABLE_BUFFS)
 				{
-					html.append(buffCategoryLeft("Icon.skill1500", "Buffs", "_bbsbuffer;view;buff"));
+					html.append(buffCategoryLeft("Icon.skill1500", "Buffs", "_bbstemplarbuffer;view;buff"));
 				}
 				if (Config.ENABLE_RESIST)
 				{
-					html.append(buffCategoryRight("Icon.skill4333", "Resists", "_bbsbuffer;view;resist"));
+					html.append(buffCategoryRight("Icon.skill4333", "Resists", "_bbstemplarbuffer;view;resist"));
 				}
 				html.append("</tr></table></td></tr>");
 			}
@@ -478,11 +479,11 @@ public class BufferBoard implements IParseBoardHandler
 				html.append("<tr><td align=center><table><tr>");
 				if (Config.ENABLE_SONGS)
 				{
-					html.append(buffCategoryLeft("Icon.skill0269", "Songs", "_bbsbuffer;view;song"));
+					html.append(buffCategoryLeft("Icon.skill0269", "Songs", "_bbstemplarbuffer;view;song"));
 				}
 				if (Config.ENABLE_DANCES)
 				{
-					html.append(buffCategoryRight("Icon.skill0275", "Dances", "_bbsbuffer;view;dance"));
+					html.append(buffCategoryRight("Icon.skill0275", "Dances", "_bbstemplarbuffer;view;dance"));
 				}
 				html.append("</tr></table></td></tr>");
 			}
@@ -492,11 +493,11 @@ public class BufferBoard implements IParseBoardHandler
 				html.append("<tr><td align=center><table><tr>");
 				if (Config.ENABLE_CHANTS)
 				{
-					html.append(buffCategoryLeft("Icon.skill1007", "Chant", "_bbsbuffer;view;chant"));
+					html.append(buffCategoryLeft("Icon.skill1007", "Chant", "_bbstemplarbuffer;view;chant"));
 				}
 				if (Config.ENABLE_SPECIAL)
 				{
-					html.append(buffCategoryRight("Icon.skill1331", "Special", "_bbsbuffer;view;special"));
+					html.append(buffCategoryRight("Icon.skill1331", "Special", "_bbstemplarbuffer;view;special"));
 				}
 				html.append("</tr></table></td></tr>");
 			}
@@ -506,18 +507,18 @@ public class BufferBoard implements IParseBoardHandler
 				html.append("<tr><td align=center><table><tr>");
 				if (Config.ENABLE_OTHERS)
 				{
-					html.append(buffCategoryLeft("Icon.skill1303", "Others", "_bbsbuffer;view;others"));
+					html.append(buffCategoryLeft("Icon.skill1303", "Others", "_bbstemplarbuffer;view;others"));
 				}
 				if (Config.ENABLE_CUBIC)
 				{
-					html.append(buffCategoryRight("Icon.skill0278", "Cubics", "_bbsbuffer;view;cubic"));
+					html.append(buffCategoryRight("Icon.skill0278", "Cubics", "_bbstemplarbuffer;view;cubic"));
 				}
 				html.append("</tr></table></td></tr>");
 			}
 		}
 		if (player.isGM())
 		{
-			html.append(menuItem("Icon.skill0487", "Admin Edit buffs", null, "_bbsbuffer;gmManage"));
+			html.append(menuItem("Icon.skill0487", "Admin Edit buffs", null, "_bbstemplarbuffer;gmManage"));
 		}
 		html.append("</table></td></tr></table>");
 		html.append("</td>");
@@ -535,19 +536,19 @@ public class BufferBoard implements IParseBoardHandler
 		{
 			final String autoLabel = petMode ? "Auto Buff Pet" : "Auto Buff";
 			final String autoPrice = Config.FREE_BUFFS ? "Free" : formatAdena(Config.BUFF_SET_PRICE) + " Adena";
-			html.append(menuItem("Icon.skill1411", autoLabel, "Price: " + autoPrice, "_bbsbuffer;castSet"));
+			html.append(menuItem("Icon.skill1411", autoLabel, "Price: " + autoPrice, "_bbstemplarbuffer;castSet"));
 		}
 		if (Config.ENABLE_HEAL)
 		{
 			final String healLabel = petMode ? "Heal My Pet" : "Heal HP / CP / MP";
 			final String healPrice = Config.FREE_BUFFS ? "Free" : formatAdena(Config.HEAL_PRICE) + " Adena";
-			html.append(menuItem("Icon.skill0440", healLabel, "Price: " + healPrice, "_bbsbuffer;heal"));
+			html.append(menuItem("Icon.skill0440", healLabel, "Price: " + healPrice, "_bbstemplarbuffer;heal"));
 		}
 		if (Config.ENABLE_BUFF_REMOVE)
 		{
 			final String cancelLabel = petMode ? "Remove Pet Buffs" : "Cancel Your Buffs";
 			final String cancelPrice = Config.FREE_BUFFS ? "Free" : formatAdena(Config.BUFF_REMOVE_PRICE) + " Adena";
-			html.append(menuItem("Icon.skill1056", cancelLabel, "Price: " + cancelPrice, "_bbsbuffer;removeBuffs"));
+			html.append(menuItem("Icon.skill1056", cancelLabel, "Price: " + cancelPrice, "_bbstemplarbuffer;removeBuffs"));
 		}
 		html.append("</table>");
 		html.append("</td>");
@@ -618,12 +619,12 @@ public class BufferBoard implements IParseBoardHandler
 				final int id = Integer.parseInt(buff.substring(secondSep + 1, lastSep));
 				final int level = Integer.parseInt(buff.substring(lastSep + 1));
 				html.append("<tr><td>").append(getSkillIconHtml(id, level)).append("</td>");
-				html.append("<td>").append(button(name, "_bbsbuffer;give;" + id + ";" + level + ";" + buffType, 190)).append("</td></tr>");
+				html.append("<td>").append(button(name, "_bbstemplarbuffer;give;" + id + ";" + level + ";" + buffType, 190)).append("</td></tr>");
 			}
 			html.append("</table>");
 		}
 		
-		html.append("<br>").append(button("Back", "_bbsbuffer", 100));
+		html.append("<br>").append(button("Back", "_bbstemplarbuffer", 100));
 		html.append("<br><font color=303030>").append(TITLE).append("</font></center></body></html>");
 		return html.toString();
 	}
@@ -977,7 +978,7 @@ public class BufferBoard implements IParseBoardHandler
 	
 	private String createSchemeForm()
 	{
-		return "<html noscrollbar><title>" + TITLE + "</title><body><center>" + "<img src=\"L2UI_CH3.herotower_deco\" width=256 height=32><br><br>" + "You MUST separate new words with a dot (.)<br><br>" + "Scheme name: <edit var=\"sname\" width=120><br><br>" + button("Create Scheme", "_bbsbuffer;create $sname", 130) + "<br>" + button("Back", "_bbsbuffer", 100) + "<br><font color=303030>" + TITLE + "</font></center></body></html>";
+		return "<html noscrollbar><title>" + TITLE + "</title><body><center>" + "<img src=\"L2UI_CH3.herotower_deco\" width=256 height=32><br><br>" + "You MUST separate new words with a dot (.)<br><br>" + "Scheme name: <edit var=\"sname\" width=120><br><br>" + button("Create Scheme", "_bbstemplarbuffer;create $sname", 130) + "<br>" + button("Back", "_bbstemplarbuffer", 100) + "<br><font color=303030>" + TITLE + "</font></center></body></html>";
 	}
 	
 	private String handleCreateScheme(Player player, String rawName)
@@ -1030,7 +1031,7 @@ public class BufferBoard implements IParseBoardHandler
 			final ResultSet rs = ps.executeQuery();
 			while (rs.next())
 			{
-				html.append(button(rs.getString("scheme_name"), "_bbsbuffer;manage;" + rs.getString("id"), 130));
+				html.append(button(rs.getString("scheme_name"), "_bbstemplarbuffer;manage;" + rs.getString("id"), 130));
 			}
 			rs.close();
 			ps.close();
@@ -1040,7 +1041,7 @@ public class BufferBoard implements IParseBoardHandler
 			LOG.warning("BufferBoard editSchemeList error: " + e.getMessage());
 		}
 		
-		html.append("<br>").append(button("Back", "_bbsbuffer", 100));
+		html.append("<br>").append(button("Back", "_bbstemplarbuffer", 100));
 		html.append("<br><font color=303030>").append(TITLE).append("</font></center></body></html>");
 		return html.toString();
 	}
@@ -1061,7 +1062,7 @@ public class BufferBoard implements IParseBoardHandler
 			{
 				final String id = rs.getString("id");
 				final String name = rs.getString("scheme_name");
-				html.append(button(name, "_bbsbuffer;delete_c;" + id + ";" + name, 130));
+				html.append(button(name, "_bbstemplarbuffer;delete_c;" + id + ";" + name, 130));
 			}
 			rs.close();
 			ps.close();
@@ -1071,14 +1072,14 @@ public class BufferBoard implements IParseBoardHandler
 			LOG.warning("BufferBoard deleteSchemeList error: " + e.getMessage());
 		}
 		
-		html.append("<br>").append(button("Back", "_bbsbuffer", 100));
+		html.append("<br>").append(button("Back", "_bbstemplarbuffer", 100));
 		html.append("<br><font color=303030>").append(TITLE).append("</font></center></body></html>");
 		return html.toString();
 	}
 	
 	private String confirmDeleteScheme(String id, String name)
 	{
-		return "<html noscrollbar><title>" + TITLE + "</title><body><center>" + "<img src=\"L2UI_CH3.herotower_deco\" width=256 height=32><br>" + "Do you really want to delete '<font color=LEVEL>" + name + "</font>'?<br><br>" + button("Yes", "_bbsbuffer;delete;" + id, 50) + button("No", "_bbsbuffer;delete_1", 50) + "<br><font color=303030>" + TITLE + "</font></center></body></html>";
+		return "<html noscrollbar><title>" + TITLE + "</title><body><center>" + "<img src=\"L2UI_CH3.herotower_deco\" width=256 height=32><br>" + "Do you really want to delete '<font color=LEVEL>" + name + "</font>'?<br><br>" + button("Yes", "_bbstemplarbuffer;delete;" + id, 50) + button("No", "_bbstemplarbuffer;delete_1", 50) + "<br><font color=303030>" + TITLE + "</font></center></body></html>";
 	}
 	
 	private String handleDeleteScheme(Player player, String schemeId)
@@ -1124,15 +1125,15 @@ public class BufferBoard implements IParseBoardHandler
 		
 		if (buffCount < (MAX_SCHEME_BUFFS + MAX_SCHEME_DANCES))
 		{
-			html.append(button("Add buffs", "_bbsbuffer;addView;" + schemeId + ";1", 130));
+			html.append(button("Add buffs", "_bbstemplarbuffer;addView;" + schemeId + ";1", 130));
 		}
 		if (buffCount > 0)
 		{
-			html.append(button("Remove buffs", "_bbsbuffer;removeView;" + schemeId + ";1", 130));
+			html.append(button("Remove buffs", "_bbstemplarbuffer;removeView;" + schemeId + ";1", 130));
 		}
 		
-		html.append("<br>").append(button("Back", "_bbsbuffer;edit_1", 100));
-		html.append(button("Home", "_bbsbuffer", 100));
+		html.append("<br>").append(button("Back", "_bbstemplarbuffer;edit_1", 100));
+		html.append(button("Home", "_bbstemplarbuffer", 100));
 		html.append("<br><font color=303030>").append(TITLE).append("</font></center></body></html>");
 		return html.toString();
 	}
@@ -1167,8 +1168,8 @@ public class BufferBoard implements IParseBoardHandler
 				if (typeQuery.isEmpty())
 				{
 					html.append("<br>No more buff slots available!");
-					html.append("<br>").append(button("Back", "_bbsbuffer;manage;" + scheme, 100));
-					html.append(button("Home", "_bbsbuffer", 100));
+					html.append("<br>").append(button("Back", "_bbstemplarbuffer;manage;" + scheme, 100));
+					html.append(button("Home", "_bbstemplarbuffer", 100));
 					html.append("<br><font color=303030>").append(TITLE).append("</font></center></body></html>");
 					return html.toString();
 				}
@@ -1234,7 +1235,7 @@ public class BufferBoard implements IParseBoardHandler
 			else
 			{
 				final String viewCmd = "add".equals(mode) ? "addView" : "removeView";
-				html.append("<td width=").append(width).append(">").append(button(pageName + i, "_bbsbuffer;" + viewCmd + ";" + scheme + ";" + i, Integer.parseInt(width))).append("</td>");
+				html.append("<td width=").append(width).append(">").append(button(pageName + i, "_bbstemplarbuffer;" + viewCmd + ";" + scheme + ";" + i, Integer.parseInt(width))).append("</td>");
 			}
 		}
 		html.append("</tr></table>");
@@ -1286,19 +1287,19 @@ public class BufferBoard implements IParseBoardHandler
 			
 			if ("add".equals(mode))
 			{
-				html.append(button("Add", "_bbsbuffer;addBuff;" + scheme + "_" + id + "_" + level + ";" + page + ";" + totalBuffs, 65));
+				html.append(button("Add", "_bbstemplarbuffer;addBuff;" + scheme + "_" + id + "_" + level + ";" + page + ";" + totalBuffs, 65));
 			}
 			else
 			{
-				html.append(button("Remove", "_bbsbuffer;removeBuff;" + scheme + "_" + id + "_" + level + ";" + page + ";" + totalBuffs, 65));
+				html.append(button("Remove", "_bbstemplarbuffer;removeBuff;" + scheme + "_" + id + "_" + level + ";" + page + ";" + totalBuffs, 65));
 			}
 			
 			html.append("</td></tr></table>");
 			k++;
 		}
 		
-		html.append("<br><br>").append(button("Back", "_bbsbuffer;manage;" + scheme, 100));
-		html.append(button("Home", "_bbsbuffer", 100));
+		html.append("<br><br>").append(button("Back", "_bbstemplarbuffer;manage;" + scheme, 100));
+		html.append(button("Home", "_bbstemplarbuffer", 100));
 		html.append("<br><font color=303030>").append(TITLE).append("</font></center></body></html>");
 		return html.toString();
 	}
@@ -1648,42 +1649,42 @@ public class BufferBoard implements IParseBoardHandler
 		
 		if (Config.ENABLE_BUFFS)
 		{
-			html.append(button("Buffs", "_bbsbuffer;gmEditList;buff;Buffs;1", 118));
+			html.append(button("Buffs", "_bbstemplarbuffer;gmEditList;buff;Buffs;1", 118));
 		}
 		if (Config.ENABLE_RESIST)
 		{
-			html.append(button("Resist Buffs", "_bbsbuffer;gmEditList;resist;Resists;1", 118));
+			html.append(button("Resist Buffs", "_bbstemplarbuffer;gmEditList;resist;Resists;1", 118));
 		}
 		if (Config.ENABLE_SONGS)
 		{
-			html.append(button("Songs", "_bbsbuffer;gmEditList;song;Songs;1", 118));
+			html.append(button("Songs", "_bbstemplarbuffer;gmEditList;song;Songs;1", 118));
 		}
 		if (Config.ENABLE_DANCES)
 		{
-			html.append(button("Dances", "_bbsbuffer;gmEditList;dance;Dances;1", 118));
+			html.append(button("Dances", "_bbstemplarbuffer;gmEditList;dance;Dances;1", 118));
 		}
 		if (Config.ENABLE_CHANTS)
 		{
-			html.append(button("Chants", "_bbsbuffer;gmEditList;chant;Chants;1", 118));
+			html.append(button("Chants", "_bbstemplarbuffer;gmEditList;chant;Chants;1", 118));
 		}
 		if (Config.ENABLE_SPECIAL)
 		{
-			html.append(button("Special Buffs", "_bbsbuffer;gmEditList;special;Special_Buffs;1", 118));
+			html.append(button("Special Buffs", "_bbstemplarbuffer;gmEditList;special;Special_Buffs;1", 118));
 		}
 		if (Config.ENABLE_OTHERS)
 		{
-			html.append(button("Others Buffs", "_bbsbuffer;gmEditList;others;Others_Buffs;1", 118));
+			html.append(button("Others Buffs", "_bbstemplarbuffer;gmEditList;others;Others_Buffs;1", 118));
 		}
 		if (Config.ENABLE_CUBIC)
 		{
-			html.append(button("Cubics", "_bbsbuffer;gmEditList;cubic;Cubics;1", 118));
+			html.append(button("Cubics", "_bbstemplarbuffer;gmEditList;cubic;Cubics;1", 118));
 		}
 		if (Config.ENABLE_BUFF_SET)
 		{
-			html.append("<br1>").append(button("Buff Sets", "_bbsbuffer;gmEditList;set;Buff_Sets;1", 118));
+			html.append("<br1>").append(button("Buff Sets", "_bbstemplarbuffer;gmEditList;set;Buff_Sets;1", 118));
 		}
 		
-		html.append("<br>").append(button("Back", "_bbsbuffer", 100));
+		html.append("<br>").append(button("Back", "_bbstemplarbuffer", 100));
 		html.append("<br><font color=303030>").append(TITLE).append("</font></center></body></html>");
 		return html.toString();
 	}
@@ -1738,7 +1739,7 @@ public class BufferBoard implements IParseBoardHandler
 			}
 			else
 			{
-				html.append("<td width=").append(pWidth).append(">").append(button(pName + i, "_bbsbuffer;gmEditList;" + type + ";" + typeName + ";" + i, Integer.parseInt(pWidth))).append("</td>");
+				html.append("<td width=").append(pWidth).append(">").append(button(pName + i, "_bbstemplarbuffer;gmEditList;" + type + ";" + typeName + ";" + i, Integer.parseInt(pWidth))).append("</td>");
 			}
 		}
 		html.append("</tr></table><br>");
@@ -1784,7 +1785,7 @@ public class BufferBoard implements IParseBoardHandler
 					listOrder = "List=\"" + SET_NONE + ";" + SET_FIGHTER + ";" + SET_MAGE + ";" + SET_ALL + ";\"";
 				}
 				html.append("<tr><td fixwidth=145>").append(name).append("</td><td width=70><combobox var=\"newSet").append(i).append("\" width=70 ").append(listOrder).append("></td><td width=50>");
-				html.append(button("Update", "_bbsbuffer;gmChangeSet;" + skillPos + ";" + page + " $newSet" + i, 50));
+				html.append(button("Update", "_bbstemplarbuffer;gmChangeSet;" + skillPos + ";" + page + " $newSet" + i, 50));
 				html.append("</td></tr>");
 			}
 			else
@@ -1792,19 +1793,19 @@ public class BufferBoard implements IParseBoardHandler
 				html.append("<tr><td fixwidth=170>").append(name).append("</td><td width=80>");
 				if (usable == 1)
 				{
-					html.append(button("Disable", "_bbsbuffer;gmEditBuff;" + skillPos + ";0-" + page + ";" + type, 80));
+					html.append(button("Disable", "_bbstemplarbuffer;gmEditBuff;" + skillPos + ";0-" + page + ";" + type, 80));
 				}
 				else
 				{
-					html.append(button("Enable", "_bbsbuffer;gmEditBuff;" + skillPos + ";1-" + page + ";" + type, 80));
+					html.append(button("Enable", "_bbstemplarbuffer;gmEditBuff;" + skillPos + ";1-" + page + ";" + type, 80));
 				}
 				html.append("</td></tr>");
 			}
 			html.append("</table>");
 		}
 		
-		html.append("<br><br>").append(button("Back", "_bbsbuffer;gmManage", 100));
-		html.append(button("Home", "_bbsbuffer", 100));
+		html.append("<br><br>").append(button("Back", "_bbstemplarbuffer;gmManage", 100));
+		html.append(button("Home", "_bbstemplarbuffer", 100));
 		html.append("<br><font color=303030>").append(TITLE).append("</font></center></body></html>");
 		return html.toString();
 	}

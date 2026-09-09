@@ -1,22 +1,23 @@
 /*
  * Copyright (c) 2013 L2jMobius
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * 
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
- * IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 package org.l2jmobius.gameserver.model.actor.instance;
 
@@ -25,47 +26,46 @@ import org.l2jmobius.gameserver.enums.Race;
 import org.l2jmobius.gameserver.model.actor.Npc;
 import org.l2jmobius.gameserver.model.actor.Player;
 import org.l2jmobius.gameserver.model.actor.templates.NpcTemplate;
-import org.l2jmobius.gameserver.model.item.instance.Item;
-import org.l2jmobius.gameserver.network.serverpackets.InventoryUpdate;
 
 /**
- * @author Lucas Modified by: [Tu nombre]
+ * NPC manager for custom race skins.
+ * @author Lucas
  */
 public class ChangeSkinManager extends Npc
 {
-	// Constantes para el item Templar Coin
 	private static final int TEMPLAR_COIN_ID = 4358;
-	private static final int TEMPLAR_COIN_COST = 300;
+	private static final long TEMPLAR_COIN_COST = 300;
+	private static final String ORIGINAL_SEX_VARIABLE = "CHANGE_SKIN_ORIGINAL_SEX";
 	
-	public enum Races
+	private enum Skin
 	{
-		FIGHTER(Race.HUMAN, ClassId.FIGHTER),
-		MAGE(Race.HUMAN, ClassId.MAGE),
-		ELVENFIGHTER(Race.ELF, ClassId.ELVEN_FIGHTER),
-		ELVENMAGE(Race.ELF, ClassId.ELVEN_MAGE),
-		DARKFIGHTER(Race.DARK_ELF, ClassId.DARK_FIGHTER),
-		DARKMAGE(Race.DARK_ELF, ClassId.DARK_MAGE),
-		ORCFIGHTER(Race.ORC, ClassId.ORC_FIGHTER),
-		ORCMAGE(Race.ORC, ClassId.ORC_MAGE),
-		DWARVEN(Race.DWARF, ClassId.DWARVEN_FIGHTER),
+		HUMAN_FIGHTER(Race.HUMAN, ClassId.FIGHTER),
+		HUMAN_MAGE(Race.HUMAN, ClassId.MAGE),
+		ELF_FIGHTER(Race.ELF, ClassId.ELVEN_FIGHTER),
+		ELF_MAGE(Race.ELF, ClassId.ELVEN_MAGE),
+		DARK_ELF_FIGHTER(Race.DARK_ELF, ClassId.DARK_FIGHTER),
+		DARK_ELF_MAGE(Race.DARK_ELF, ClassId.DARK_MAGE),
+		ORC_FIGHTER(Race.ORC, ClassId.ORC_FIGHTER),
+		ORC_MAGE(Race.ORC, ClassId.ORC_MAGE),
+		DWARF(Race.DWARF, ClassId.DWARVEN_FIGHTER),
 		KAMAEL(Race.KAMAEL, ClassId.MALE_SOLDIER),
 		ERTHEIA(Race.ERTHEIA, ClassId.ERTHEIA_WIZARD);
 		
 		private final Race _race;
 		private final ClassId _classId;
 		
-		private Races(Race race, ClassId classId)
+		Skin(Race race, ClassId classId)
 		{
 			_race = race;
 			_classId = classId;
 		}
 		
-		public int getRaceId()
+		private int getRaceId()
 		{
 			return _race.ordinal();
 		}
 		
-		public int getClassId()
+		private int getClassId()
 		{
 			return _classId.getId();
 		}
@@ -79,172 +79,161 @@ public class ChangeSkinManager extends Npc
 	@Override
 	public void onBypassFeedback(Player player, String command)
 	{
-		if (player == null)
+		if ((player == null) || (command == null))
 		{
 			return;
 		}
 		
-		// Verificar si el jugador tiene suficientes Templar Coins
+		// Restoring the original appearance is always free.
+		if (command.equals("BackMainSkin"))
+		{
+			restoreOriginalSkin(player);
+			return;
+		}
+		
+		final Skin skin = getSkin(command);
+		if (skin == null)
+		{
+			super.onBypassFeedback(player, command);
+			return;
+		}
+		
+		if ((player.getCustomRaceSkin() == skin.getRaceId()) && (player.getCustomClassSkin() == skin.getClassId()))
+		{
+			player.sendMessage("Ya tienes seleccionada esta apariencia.");
+			return;
+		}
+		
 		if (!hasEnoughTemplarCoins(player))
 		{
-			player.sendMessage("Necesitas " + TEMPLAR_COIN_COST + " Templar Coins  para cambiar de skin.");
+			player.sendMessage("Necesitas " + TEMPLAR_COIN_COST + " Templar Coins para cambiar de skin.");
 			return;
 		}
 		
-		Races race = null;
+		// Player#destroyItemByItemId validates the amount and sends InventoryUpdate.
+		if (!player.destroyItemByItemId("ChangeSkin", TEMPLAR_COIN_ID, TEMPLAR_COIN_COST, this, true))
+		{
+			player.sendMessage("No se pudo procesar el pago. Intenta nuevamente.");
+			return;
+		}
 		
-		if (command.startsWith("HumanFighter"))
+		rememberOriginalSex(player);
+		applySkin(player, skin);
+		refreshPlayer(player);
+		player.sendMessage("Skin cambiada correctamente. Se descontaron " + TEMPLAR_COIN_COST + " Templar Coins.");
+	}
+	
+	private static Skin getSkin(String command)
+	{
+		switch (command)
 		{
-			race = Races.FIGHTER;
+			case "HumanFighter":
+			{
+				return Skin.HUMAN_FIGHTER;
+			}
+			case "HumanMage":
+			{
+				return Skin.HUMAN_MAGE;
+			}
+			case "ElfFighter":
+			{
+				return Skin.ELF_FIGHTER;
+			}
+			case "ElfMage":
+			{
+				return Skin.ELF_MAGE;
+			}
+			case "DarkElfFighter":
+			{
+				return Skin.DARK_ELF_FIGHTER;
+			}
+			case "DarkElfMage":
+			{
+				return Skin.DARK_ELF_MAGE;
+			}
+			case "OrcFighter":
+			{
+				return Skin.ORC_FIGHTER;
+			}
+			case "OrcMage":
+			{
+				return Skin.ORC_MAGE;
+			}
+			case "Dwarven":
+			{
+				return Skin.DWARF;
+			}
+			case "Kamael":
+			{
+				return Skin.KAMAEL;
+			}
+			case "Ertheia":
+			{
+				return Skin.ERTHEIA;
+			}
 		}
-		else if (command.startsWith("HumanMage"))
+		return null;
+	}
+	
+	private static boolean hasEnoughTemplarCoins(Player player)
+	{
+		return player.getInventory().getInventoryItemCount(TEMPLAR_COIN_ID, -1) >= TEMPLAR_COIN_COST;
+	}
+	
+	private static void rememberOriginalSex(Player player)
+	{
+		if (!player.getVariables().hasVariable(ORIGINAL_SEX_VARIABLE))
 		{
-			race = Races.MAGE;
+			player.getVariables().set(ORIGINAL_SEX_VARIABLE, player.getAppearance().isFemale());
 		}
-		else if (command.startsWith("ElfFighter"))
-		{
-			race = Races.ELVENFIGHTER;
-		}
-		else if (command.startsWith("ElfMage"))
-		{
-			race = Races.ELVENMAGE;
-		}
-		else if (command.startsWith("DarkElfFighter"))
-		{
-			race = Races.DARKFIGHTER;
-		}
-		else if (command.startsWith("DarkElfMage"))
-		{
-			race = Races.DARKMAGE;
-		}
-		else if (command.startsWith("OrcFighter"))
-		{
-			race = Races.ORCFIGHTER;
-		}
-		else if (command.startsWith("OrcMage"))
-		{
-			race = Races.ORCMAGE;
-		}
-		else if (command.startsWith("Dwarven"))
-		{
-			race = Races.DWARVEN;
-		}
-		else if (command.startsWith("Kamael"))
-		{
-			race = Races.KAMAEL;
-		}
-		else if (command.startsWith("Ertheia"))
+	}
+	
+	private static void applySkin(Player player, Skin skin)
+	{
+		player.setCustomRaceSkin(skin.getRaceId());
+		player.setCustomClassSkin(skin.getClassId());
+		
+		// Ertheia has no male model. Other skins keep the player's original sex.
+		if (skin == Skin.ERTHEIA)
 		{
 			player.getAppearance().setFemale();
-			race = Races.ERTHEIA;
 		}
-		else if (command.startsWith("BackMainSkin"))
+		else
 		{
-			// Restaurar skin original - sin costo
-			player.getAppearance().setMale();
-			player.setCustomClassSkin(-1);
-			player.setCustomRaceSkin(-1);
-			
-			refreshPlayer(player);
+			player.getAppearance().setSex(player.getVariables().getBoolean(ORIGINAL_SEX_VARIABLE, player.getAppearance().isFemale()));
+		}
+	}
+	
+	private static void restoreOriginalSkin(Player player)
+	{
+		if ((player.getCustomRaceSkin() == -1) && (player.getCustomClassSkin() == -1))
+		{
+			player.sendMessage("Ya tienes tu apariencia original.");
 			return;
 		}
 		
-		if (race != null)
+		player.setCustomClassSkin(-1);
+		player.setCustomRaceSkin(-1);
+		if (player.getVariables().hasVariable(ORIGINAL_SEX_VARIABLE))
 		{
-			// Restar los Templar Coins del jugador
-			if (removeTemplarCoins(player))
-			{
-				setRaceCustomSkin(player, race);
-				refreshPlayer(player);
-				player.sendMessage("¡Skin cambiado exitosamente! Has gastado " + TEMPLAR_COIN_COST + " Templar Coin.");
-			}
-			else
-			{
-				player.sendMessage("Error al procesar el pago. Contacta con un administrador.");
-			}
-		}
-	}
-	
-	/**
-	 * Verifica si el jugador tiene suficientes Templar Coins
-	 */
-	private boolean hasEnoughTemplarCoins(Player player)
-	{
-		Item templarCoin = player.getInventory().getItemByItemId(TEMPLAR_COIN_ID);
-		if (templarCoin == null)
-		{
-			return false;
-		}
-		return templarCoin.getCount() >= TEMPLAR_COIN_COST;
-	}
-	
-	/**
-	 * Elimina los Templar Coins del inventario del jugador
-	 */
-	private boolean removeTemplarCoins(Player player)
-	{
-		// Obtener el item del inventario
-		Item templarCoin = player.getInventory().getItemByItemId(TEMPLAR_COIN_ID);
-		if ((templarCoin == null) || (templarCoin.getCount() < TEMPLAR_COIN_COST))
-		{
-			return false;
+			player.getAppearance().setSex(player.getVariables().getBoolean(ORIGINAL_SEX_VARIABLE));
+			player.getVariables().remove(ORIGINAL_SEX_VARIABLE);
 		}
 		
-		// Intentar destruir el item - en Classic Interlude esto devuelve el Item o null
-		Item destroyedItem = player.getInventory().destroyItemByItemId("ChangeSkin", TEMPLAR_COIN_ID, TEMPLAR_COIN_COST, player, null);
-		
-		// Si el item fue destruido exitosamente (no es null), actualizar inventario
-		if (destroyedItem != null)
-		{
-			// Actualizar el inventario del cliente
-			InventoryUpdate iu = new InventoryUpdate();
-			iu.addModifiedItem(templarCoin);
-			player.sendPacket(iu);
-			
-			// Enviar la lista de items actualizada - con el parámetro booleano
-			player.sendItemList(false); // false = no force update, true = force update
-			
-			// También puedes usar true si quieres forzar la actualización:
-			// player.sendItemList(true);
-			
-			return true;
-		}
-		
-		return false;
-	}
-	
-	private static void setRaceCustomSkin(Player player, Races race)
-	{
-		if ((player == null) || (race == null))
-		{
-			return;
-		}
-		
-		player.setCustomRaceSkin(race.getRaceId());
-		player.setCustomClassSkin(race.getClassId());
+		refreshPlayer(player);
+		player.sendMessage("Tu apariencia original fue restaurada sin costo.");
 	}
 	
 	private static void refreshPlayer(Player player)
 	{
-		player.decayMe();
-		player.spawnMe();
-		
+		// broadcastUserInfo also broadcasts CharInfo to known players.
 		player.broadcastUserInfo();
-		player.broadcastCharInfo();
 	}
 	
 	@Override
 	public String getHtmlPath(int npcId, int value, Player player)
 	{
-		String filename = "";
-		if (value == 0)
-		{
-			filename = Integer.toString(npcId);
-		}
-		else
-		{
-			filename = npcId + "-" + value;
-		}
+		final String filename = value == 0 ? Integer.toString(npcId) : npcId + "-" + value;
 		return "data/html/mods/ChangeSkin/" + filename + ".htm";
 	}
 }

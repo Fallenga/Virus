@@ -1,7 +1,7 @@
 package org.l2jmobius.gameserver.model.events.tournament;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,11 +32,11 @@ public class Arena1x1 implements Runnable
 	// Arenas
 	Arena[] arenas = new Arena[ArenaConfig.ARENA_EVENT_COUNT_1X1];
 	// list of fights going on
-	Map<Integer, String> fights = new HashMap<>(ArenaConfig.ARENA_EVENT_COUNT_1X1);
+	Map<Integer, String> fights = new ConcurrentHashMap<>(ArenaConfig.ARENA_EVENT_COUNT_1X1);
 	
 	public Arena1x1()
 	{
-		registered = new ArrayList<>();
+		registered = new CopyOnWriteArrayList<>();
 		int[] coord;
 		for (int i = 0; i < ArenaConfig.ARENA_EVENT_COUNT_1X1; i++)
 		{
@@ -141,9 +141,7 @@ public class Arena1x1 implements Runnable
 			List<Pair> opponents = selectOpponents();
 			if ((opponents != null) && (opponents.size() == 2))
 			{
-				Thread T = new Thread(new EvtArenaTask(opponents));
-				T.setDaemon(true);
-				T.start();
+				ThreadPool.execute(new EvtArenaTask(opponents));
 			}
 			try
 			{
@@ -157,7 +155,7 @@ public class Arena1x1 implements Runnable
 	
 	private List<Pair> selectOpponents()
 	{
-		List<Pair> opponents = new ArrayList<>();
+		List<Pair> opponents = new CopyOnWriteArrayList<>();
 		Pair pairOne = null, pairTwo = null;
 		int tries = 3;
 		do
@@ -586,7 +584,7 @@ public class Arena1x1 implements Runnable
 		
 		private boolean check()
 		{
-			return (pairOne.isDead() && pairTwo.isDead());
+			return ArenaTask.is_started() && pairOne.isDead() && pairTwo.isDead();
 		}
 		
 		private void portPairsToArena()
@@ -709,7 +707,7 @@ public class Arena1x1 implements Runnable
 	
 	public static Map<Integer, Player> allParticipants()
 	{
-		Map<Integer, Player> all = new HashMap<>();
+		Map<Integer, Player> all = new ConcurrentHashMap<>();
 		if (getRegisteredCount() > 0)
 		{
 			for (Pair dp : registered)

@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.l2jmobius.Config;
 import org.l2jmobius.commons.network.WritableBuffer;
 import org.l2jmobius.gameserver.data.xml.SkillTreeData;
 import org.l2jmobius.gameserver.model.SkillLearn;
@@ -69,7 +70,7 @@ public class AcquireSkillList extends ServerPacket
 		for (SkillLearn skill : _learnable)
 		{
 			buffer.writeInt(skill.getSkillId());
-			buffer.writeShort(skill.getSkillLevel()); // Main writeD, Classic writeH.
+			writeSkillLevel(buffer, skill.getSkillLevel());
 			buffer.writeLong(skill.getLevelUpSp());
 			buffer.writeByte(skill.getGetLevel());
 			buffer.writeByte(0); // Skill dual class level.
@@ -95,8 +96,23 @@ public class AcquireSkillList extends ServerPacket
 			for (Skill removed : removeSkills)
 			{
 				buffer.writeInt(removed.getId());
-				buffer.writeShort(removed.getLevel()); // Main writeD, Classic writeH.
+				writeSkillLevel(buffer, removed.getLevel());
 			}
+		}
+	}
+	
+	/**
+	 * Classic uses a 16-bit level; Live uses a 32-bit level. ServerListType may contain multiple flags.
+	 */
+	private static void writeSkillLevel(WritableBuffer buffer, int level)
+	{
+		if ((Config.SERVER_LIST_TYPE & 0x400) != 0)
+		{
+			buffer.writeShort(level);
+		}
+		else
+		{
+			buffer.writeInt(level);
 		}
 	}
 }

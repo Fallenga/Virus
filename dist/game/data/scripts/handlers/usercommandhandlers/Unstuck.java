@@ -93,7 +93,7 @@ public class Unstuck implements IUserCommandHandler
 		}
 		else
 		{
-			final SkillCaster skillCaster = SkillCaster.castSkill(player, player.getTarget(), escape, null, SkillCastingType.NORMAL, false, false, unstuckTimer);
+			final SkillCaster skillCaster = SkillCaster.castSkill(player, player.getTarget(), gmEscape, null, SkillCastingType.NORMAL, false, false, unstuckTimer);
 			if (skillCaster == null)
 			{
 				player.sendPacket(ActionFailed.get(SkillCastingType.NORMAL));
@@ -133,6 +133,11 @@ public class Unstuck implements IUserCommandHandler
 			}
 			
 			_player.setIn7sDungeon(false);
+			
+			if (_player.isCastingNow(SkillCaster::isAnyNormalType))
+			{
+				_player.abortCast();
+			}
 		}
 	}
 	

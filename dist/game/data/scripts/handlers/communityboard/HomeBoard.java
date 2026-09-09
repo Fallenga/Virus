@@ -35,6 +35,7 @@ import org.l2jmobius.commons.threads.ThreadPool;
 import org.l2jmobius.commons.util.StringUtil;
 import org.l2jmobius.gameserver.cache.HtmCache;
 import org.l2jmobius.gameserver.data.sql.ClanTable;
+import org.l2jmobius.gameserver.data.xml.ClassListData;
 import org.l2jmobius.gameserver.data.xml.BuyListData;
 import org.l2jmobius.gameserver.data.xml.ExperienceData;
 import org.l2jmobius.gameserver.data.xml.MultisellData;
@@ -143,6 +144,19 @@ public class HomeBoard implements IParseBoardHandler
 			final String customPath = Config.CUSTOM_CB_ENABLED ? "Custom/" : "";
 			CommunityBoardHandler.getInstance().addBypass(player, "Home", command);
 			returnHtml = HtmCache.getInstance().getHtm(player, "data/html/CommunityBoard/" + customPath + "home.html");
+			if (Config.CUSTOM_CB_ENABLED && (returnHtml != null))
+			{
+				final String className = ClassListData.getInstance().getClass(player.getClassId()).getClassName();
+				final String clanName = player.getClan() != null ? player.getClan().getName() : "Sin Clan";
+				final String subclass = player.isSubClassActive() ? "Activa" : "Clase Base";
+				final long premiumExpiration = PremiumManager.getInstance().getPremiumExpiration(player.getAccountName());
+				final String premiumEnd = player.hasPremiumStatus() && (premiumExpiration > System.currentTimeMillis()) ? new SimpleDateFormat("dd/MM/yyyy HH:mm").format(premiumExpiration) : "Sin Premium";
+				returnHtml = returnHtml.replace("%player_level%", Integer.toString(player.getLevel()));
+				returnHtml = returnHtml.replace("%player_class%", className);
+				returnHtml = returnHtml.replace("%player_clan%", clanName);
+				returnHtml = returnHtml.replace("%player_subclass%", subclass);
+				returnHtml = returnHtml.replace("%premium_end%", premiumEnd);
+			}
 			if (!Config.CUSTOM_CB_ENABLED)
 			{
 				returnHtml = returnHtml.replace("%fav_count%", Integer.toString(getFavoriteCount(player)));

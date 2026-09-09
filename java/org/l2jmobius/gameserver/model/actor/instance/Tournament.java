@@ -39,6 +39,7 @@ import org.l2jmobius.gameserver.model.events.tournament.Arena3x3;
 import org.l2jmobius.gameserver.model.events.tournament.Arena5x5;
 import org.l2jmobius.gameserver.model.events.tournament.Arena9x9;
 import org.l2jmobius.gameserver.model.events.tournament.properties.ArenaConfig;
+import org.l2jmobius.gameserver.model.events.tournament.properties.ArenaTask;
 import org.l2jmobius.gameserver.model.olympiad.OlympiadManager;
 import org.l2jmobius.gameserver.model.skill.BuffInfo;
 import org.l2jmobius.gameserver.model.zone.ZoneId;
@@ -412,6 +413,11 @@ public class Tournament extends Npc
 	@Override
 	public void onBypassFeedback(Player player, String command)
 	{
+		if (!ArenaTask.is_started())
+		{
+			player.sendMessage("Tournament: El evento no se encuentra activo.");
+			return;
+		}
 		
 		if (command.startsWith("1x1"))
 		{

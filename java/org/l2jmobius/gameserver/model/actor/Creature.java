@@ -3676,7 +3676,11 @@ public abstract class Creature extends WorldObject implements IDeletable
 					}
 				}
 				
-				Location destiny = GeoEngine.getInstance().getValidLocation(curX, curY, curZ, x, y, z, getInstanceWorld());
+				// Swimming movement must not be projected onto ground geodata.
+				// Using getValidLocation() while inside water can select a lower ground layer
+				// (for example a catacomb below the water), pulling the player down.
+				final boolean swimming = isInsideZone(ZoneId.WATER);
+				Location destiny = swimming ? GeoEngine.getInstance().getValidSwimLocation(curX, curY, curZ, x, y, z, getInstanceWorld()) : GeoEngine.getInstance().getValidLocation(curX, curY, curZ, x, y, z, getInstanceWorld());
 				
 				x = destiny.getX();
 				y = destiny.getY();
@@ -3689,7 +3693,9 @@ public abstract class Creature extends WorldObject implements IDeletable
 				distance = verticalMovementOnly ? Math.abs(dz * dz) : Math.sqrt((dx * dx) + (dy * dy));
 			}
 			
-			if (((originalDistance - distance) > 30) && (distance <= 3000))
+			// Ground pathfinding must never be used while swimming.
+			// CellPathFinding follows geodata ground layers and may choose geometry below the water.
+			if (!isInsideZone(ZoneId.WATER) && ((originalDistance - distance) > 30) && (distance <= 3000))
 			{
 				if ((this instanceof Playable) || (this instanceof Attackable))
 				{

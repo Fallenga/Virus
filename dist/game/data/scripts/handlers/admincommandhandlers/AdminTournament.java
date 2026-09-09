@@ -23,6 +23,7 @@ package handlers.admincommandhandlers;
 import java.util.StringTokenizer;
 import java.util.logging.Logger;
 
+import org.l2jmobius.commons.threads.ThreadPool;
 import org.l2jmobius.gameserver.handler.IAdminCommandHandler;
 import org.l2jmobius.gameserver.model.World;
 import org.l2jmobius.gameserver.model.actor.Player;
@@ -132,7 +133,7 @@ public class AdminTournament implements IAdminCommandHandler
 			
 			// Iniciar el evento
 			ArenaTask._aborted = false;
-			ArenaTask.SpawnEvent();
+			ThreadPool.execute(ArenaTask::SpawnEvent);
 			
 			// Anunciar a todos los jugadores
 			broadcastToAll("Tournament started by Admin: " + activeChar.getName());
@@ -205,14 +206,10 @@ public class AdminTournament implements IAdminCommandHandler
 	{
 		try
 		{
-			// Usar el método de ArenaRanking para resetear todos los rankings
-			// Nota: Esto requiere que importes ArenaRanking
-			// import org.l2jmobius.gameserver.model.events.tournament.properties.ArenaRanking;
-			
-			// ArenaRanking.resetRank1x1();
-			// ArenaRanking.resetRank3x3();
-			// ArenaRanking.resetRank5x5();
-			// ArenaRanking.resetRank9x9();
+			org.l2jmobius.gameserver.model.events.tournament.properties.ArenaRanking.resetRank1x1();
+			org.l2jmobius.gameserver.model.events.tournament.properties.ArenaRanking.resetRank3x3();
+			org.l2jmobius.gameserver.model.events.tournament.properties.ArenaRanking.resetRank5x5();
+			org.l2jmobius.gameserver.model.events.tournament.properties.ArenaRanking.resetRank9x9();
 			
 			activeChar.sendMessage("Tournament ranking reset successfully!");
 			LOGGER.info("Admin " + activeChar.getName() + " reset tournament ranking.");

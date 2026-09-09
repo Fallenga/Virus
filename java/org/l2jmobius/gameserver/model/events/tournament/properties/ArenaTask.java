@@ -41,11 +41,20 @@ public abstract class ArenaTask
 	public static Spawn _npcSpawn2;
 	
 	/** The _in progress. */
-	public static boolean _started = false;
-	public static boolean _aborted = false;
+	public static volatile boolean _started = false;
+	public static volatile boolean _aborted = false;
 	
-	public static void SpawnEvent()
+	public static synchronized void SpawnEvent()
 	{
+		if (_started)
+		{
+			LOGGER.warning("Tournament: Se intento iniciar un evento que ya estaba activo.");
+			return;
+		}
+		
+		_aborted = false;
+		_started = true;
+		
 		Arena1x1.getInstance().clear();
 		Arena3x3.getInstance().clear();
 		Arena5x5.getInstance().clear();
@@ -56,9 +65,6 @@ public abstract class ArenaTask
 		
 		Broadcast.toAllOnlinePlayers("Tournament: El Evento ha Comenzado!");
 		Broadcast.toAllOnlinePlayers("Tournament: Duracion: " + ArenaConfig.TOURNAMENT_TIME + " minutos!");
-		
-		_aborted = false;
-		_started = true;
 		
 		ThreadPool.schedule(Arena1x1.getInstance(), 5000);
 		ThreadPool.schedule(Arena3x3.getInstance(), 5000);
@@ -73,16 +79,23 @@ public abstract class ArenaTask
 		}
 	}
 	
-	public static void finishEvent()
+	public static synchronized void finishEvent()
 	{
+		if (!_started)
+		{
+			return;
+		}
+		_started = false;
+		
 		Broadcast.toAllOnlinePlayers("Tournament: El Evento ha finalizado");
 		
 		unspawnNpc1();
 		unspawnNpc2();
 		
-		_started = false;
-		
-		ArenaEvent.getInstance().StartCalculationOfNextEventTime();
+		if (ArenaConfig.TOURNAMENT_EVENT_TIME)
+		{
+			ArenaEvent.getInstance().StartCalculationOfNextEventTime();
+		}
 		
 		for (Player player : World.getInstance().getPlayers())
 		{
@@ -151,7 +164,6 @@ public abstract class ArenaTask
 			if (npc != null)
 			{
 				npc.getStatus().setCurrentHp(999999999);
-				npc.spawnMe(npc.getX(), npc.getY(), npc.getZ());
 				npc.broadcastPacket(new MagicSkillUse(npc, npc, 1034, 1, 1, 1));
 			}
 		}
@@ -185,7 +197,6 @@ public abstract class ArenaTask
 			{
 				
 				npc.getStatus().setCurrentHp(999999999);
-				npc.spawnMe(npc.getX(), npc.getY(), npc.getZ());
 				npc.broadcastPacket(new MagicSkillUse(npc, npc, 1034, 1, 1, 1));
 			}
 		}
@@ -308,16 +319,14 @@ public abstract class ArenaTask
 					break;
 			}
 			
-			long startOneSecondWaiterStartTime = System.currentTimeMillis();
-			while ((startOneSecondWaiterStartTime + 1000) > System.currentTimeMillis())
+			try
 			{
-				try
-				{
-					Thread.sleep(1);
-				}
-				catch (InterruptedException ie)
-				{
-				}
+				Thread.sleep(1000);
+			}
+			catch (InterruptedException e)
+			{
+				Thread.currentThread().interrupt();
+				return;
 			}
 		}
 	}

@@ -1,7 +1,7 @@
 package org.l2jmobius.gameserver.model.events.tournament;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,11 +32,11 @@ public class Arena9x9 implements Runnable
 	// Arenas
 	Arena[] arenas = new Arena[ArenaConfig.ARENA_EVENT_COUNT_9X9];
 	// list of fights going on
-	Map<Integer, String> fights = new HashMap<>(ArenaConfig.ARENA_EVENT_COUNT_9X9);
+	Map<Integer, String> fights = new ConcurrentHashMap<>(ArenaConfig.ARENA_EVENT_COUNT_9X9);
 	
 	public Arena9x9()
 	{
-		registered = new ArrayList<>();
+		registered = new CopyOnWriteArrayList<>();
 		int[] coord;
 		for (int i = 0; i < ArenaConfig.ARENA_EVENT_COUNT_9X9; i++)
 		{
@@ -181,9 +181,7 @@ public class Arena9x9 implements Runnable
 			List<Pair> opponents = selectOpponents();
 			if ((opponents != null) && (opponents.size() == 2))
 			{
-				Thread T = new Thread(new EvtArenaTask(opponents));
-				T.setDaemon(true);
-				T.start();
+				ThreadPool.execute(new EvtArenaTask(opponents));
 			}
 			try
 			{
@@ -197,7 +195,7 @@ public class Arena9x9 implements Runnable
 	
 	private List<Pair> selectOpponents()
 	{
-		List<Pair> opponents = new ArrayList<>();
+		List<Pair> opponents = new CopyOnWriteArrayList<>();
 		Pair pairOne = null, pairTwo = null;
 		int tries = 3;
 		do
@@ -323,88 +321,88 @@ public class Arena9x9 implements Runnable
 		{
 			if (((leader == null) || !leader.isOnline()))
 			{
-				if ((assist != null) || assist.isOnline())
+				if ((assist != null) && assist.isOnline())
 				{
 					assist.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist2 != null) || assist2.isOnline())
+				if ((assist2 != null) && assist2.isOnline())
 				{
 					assist2.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist3 != null) || assist3.isOnline())
+				if ((assist3 != null) && assist3.isOnline())
 				{
 					assist3.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist4 != null) || assist4.isOnline())
+				if ((assist4 != null) && assist4.isOnline())
 				{
 					assist4.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist5 != null) || assist5.isOnline())
+				if ((assist5 != null) && assist5.isOnline())
 				{
 					assist5.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist6 != null) || assist6.isOnline())
+				if ((assist6 != null) && assist6.isOnline())
 				{
 					assist6.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist7 != null) || assist7.isOnline())
+				if ((assist7 != null) && assist7.isOnline())
 				{
 					assist7.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist8 != null) || assist8.isOnline())
+				if ((assist8 != null) && assist8.isOnline())
 				{
 					assist8.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
 				return false;
 			}
-			else if ((((assist == null) || !assist.isOnline()) || ((assist2 == null) || !assist2.isOnline()) || ((assist3 == null) || !assist3.isOnline()) || ((assist4 == null) || !assist4.isOnline()) || ((assist5 == null) || !assist5.isOnline()) || ((assist6 == null) || !assist6.isOnline()) || ((assist7 == null) || !assist7.isOnline()) || ((assist8 == null) || !assist8.isOnline())) && ((leader != null) || leader.isOnline()))
+			else if ((((assist == null) || !assist.isOnline()) || ((assist2 == null) || !assist2.isOnline()) || ((assist3 == null) || !assist3.isOnline()) || ((assist4 == null) || !assist4.isOnline()) || ((assist5 == null) || !assist5.isOnline()) || ((assist6 == null) || !assist6.isOnline()) || ((assist7 == null) || !assist7.isOnline()) || ((assist8 == null) || !assist8.isOnline())) && ((leader != null) && leader.isOnline()))
 			{
 				leader.sendMessage("Tournament: You participation in Event was Canceled.");
 				
-				if ((assist != null) || assist.isOnline())
+				if ((assist != null) && assist.isOnline())
 				{
 					assist.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist2 != null) || assist2.isOnline())
+				if ((assist2 != null) && assist2.isOnline())
 				{
 					assist2.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist3 != null) || assist3.isOnline())
+				if ((assist3 != null) && assist3.isOnline())
 				{
 					assist3.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist4 != null) || assist4.isOnline())
+				if ((assist4 != null) && assist4.isOnline())
 				{
 					assist4.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist5 != null) || assist5.isOnline())
+				if ((assist5 != null) && assist5.isOnline())
 				{
 					assist5.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist6 != null) || assist6.isOnline())
+				if ((assist6 != null) && assist6.isOnline())
 				{
 					assist6.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist7 != null) || assist7.isOnline())
+				if ((assist7 != null) && assist7.isOnline())
 				{
 					assist7.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
 				
-				if ((assist8 != null) || assist8.isOnline())
+				if ((assist8 != null) && assist8.isOnline())
 				{
 					assist8.sendMessage("Tournament: You participation in Event was Canceled.");
 				}
@@ -1904,7 +1902,7 @@ public class Arena9x9 implements Runnable
 		
 		private boolean check()
 		{
-			return (pairOne.isDead() && pairTwo.isDead());
+			return ArenaTask.is_started() && pairOne.isDead() && pairTwo.isDead();
 		}
 		
 		private void portPairsToArena()
@@ -2025,7 +2023,7 @@ public class Arena9x9 implements Runnable
 	
 	public static Map<Integer, Player> allParticipants()
 	{
-		Map<Integer, Player> all = new HashMap<>();
+		Map<Integer, Player> all = new ConcurrentHashMap<>();
 		if (getRegisteredCount() > 0)
 		{
 			for (Pair dp : registered)

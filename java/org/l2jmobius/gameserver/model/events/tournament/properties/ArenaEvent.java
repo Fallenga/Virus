@@ -25,34 +25,30 @@ import org.l2jmobius.commons.threads.ThreadPool;
  */
 public class ArenaEvent
 {
-	private static ArenaEvent _instance = null;
+	private static final ArenaEvent INSTANCE = new ArenaEvent();
 	protected static final Logger LOGGER = Logger.getLogger(ArenaEvent.class.getName());
 	private Calendar NextEvent;
 	private final SimpleDateFormat format = new SimpleDateFormat("HH:mm");
 	
 	public static ArenaEvent getInstance()
 	{
-		if (_instance == null)
-		{
-			_instance = new ArenaEvent();
-		}
-		return _instance;
+		return INSTANCE;
 	}
 	
 	public String getNextTime()
 	{
-		if (NextEvent.getTime() != null)
+		if (NextEvent != null)
 		{
 			return format.format(NextEvent.getTime());
 		}
-		return "Erro";
+		return "No programado";
 	}
 	
 	private ArenaEvent()
 	{
 	}
 	
-	public void StartCalculationOfNextEventTime()
+	public synchronized void StartCalculationOfNextEventTime()
 	{
 		try
 		{
@@ -94,8 +90,7 @@ public class ArenaEvent
 		}
 		catch (Exception e)
 		{
-			e.printStackTrace();
-			System.out.println("[Tournament]: " + e);
+			LOGGER.warning("Tournament: No se pudo calcular el proximo evento: " + e.getMessage());
 		}
 	}
 	
