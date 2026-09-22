@@ -1848,7 +1848,16 @@ public abstract class Creature extends WorldObject implements IDeletable
 		}
 		else
 		{
-			stopAllEffectsExceptThoseThatLastThroughDeath();
+			if (isPlayer() && org.l2jmobius.gameserver.util.EventRespawnProtection.keepsBuffsOnDeath(asPlayer()))
+			{
+				// Keep beneficial buffs with their remaining duration during supported events.
+				// Debuffs and toggles retain the normal death cleanup rules.
+				getEffectList().stopEffects(info -> !info.getSkill().isStayAfterDeath() && (info.getSkill().getBuffType().isDebuff() || info.getSkill().isToggle()), true, true);
+			}
+			else
+			{
+				stopAllEffectsExceptThoseThatLastThroughDeath();
+			}
 		}
 		
 		// Send the Server->Client packet StatusUpdate with current HP and MP to all other Player to inform

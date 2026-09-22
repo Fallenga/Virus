@@ -25,7 +25,9 @@ import static org.l2jmobius.gameserver.ai.CtrlIntention.AI_INTENTION_ACTIVE;
 import org.l2jmobius.Config;
 import org.l2jmobius.commons.threads.ThreadPool;
 import org.l2jmobius.gameserver.data.xml.SkillData;
+import org.l2jmobius.gameserver.enums.TeleportWhereType;
 import org.l2jmobius.gameserver.handler.IUserCommandHandler;
+import org.l2jmobius.gameserver.instancemanager.MapRegionManager;
 import org.l2jmobius.gameserver.model.actor.Player;
 import org.l2jmobius.gameserver.model.skill.Skill;
 import org.l2jmobius.gameserver.model.skill.SkillCaster;
@@ -132,12 +134,11 @@ public class Unstuck implements IUserCommandHandler
 				return;
 			}
 			
+			_player.abortCast();
 			_player.setIn7sDungeon(false);
 			
-			if (_player.isCastingNow(SkillCaster::isAnyNormalType))
-			{
-				_player.abortCast();
-			}
+			// Teleport a la ciudad correspondiente.
+			_player.teleToLocation(MapRegionManager.getInstance().getTeleToLocation(_player, TeleportWhereType.TOWN));
 		}
 	}
 	

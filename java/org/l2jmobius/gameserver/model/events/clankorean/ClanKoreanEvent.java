@@ -1,6 +1,5 @@
 package org.l2jmobius.gameserver.model.events.clankorean;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -29,15 +28,17 @@ public final class ClanKoreanEvent
 {
 	private static final Logger LOGGER = Logger.getLogger(ClanKoreanEvent.class.getName());
 	public static final int TEAM_SIZE = 5;
-	
+
 	public enum State
 	{
 		INACTIVE,
 		REGISTRATION,
 		PREPARING,
-		FIGHTING
+		FIGHTING,
+		RUNNING,
+		CLOSING
 	}
-	
+
 	private final Map<Integer, Team> registeredTeams = new ConcurrentHashMap<>();
 	private final List<Team> registrationOrder = new ArrayList<>();
 	private final List<Team> pendingTeams = new ArrayList<>();
@@ -46,41 +47,117 @@ public final class ClanKoreanEvent
 	private final Map<Integer, List<Integer>> selections = new ConcurrentHashMap<>();
 	private volatile State state = State.INACTIVE;
 	private volatile Spawn npcSpawn;
-	
+	private LocalDateTime activeWindowStart;
+
 	private ClanKoreanEvent()
 	{
 	}
-	
+
 	public static ClanKoreanEvent getInstance()
 	{
 		return SingletonHolder.INSTANCE;
 	}
-	
+
 	public static void init()
 	{
 		ClanKoreanConfig.load();
 		if (ClanKoreanConfig.ENABLED)
 		{
-			getInstance().scheduleNextEvent();
-			LOGGER.info("Clan Korean: Sistema cargado.");
+			getInstance().scheduleWindowCheck(1000);
+			LOGGER.info("Clan Korean: Programador cargado para " + ClanKoreanConfig.EVENT_DAYS + " a las " + ClanKoreanConfig.EVENT_START_TIMES + " durante " + ClanKoreanConfig.EVENT_DURATION_MINUTES + " minutos.");
 		}
 	}
-	
+
 	public State getState()
 	{
 		return state;
 	}
-	
+
 	public int getRegisteredTeamCount()
 	{
 		return registeredTeams.size();
 	}
-	
+
+	public int getWaitingTeamCount()
+	{
+		return pendingTeams.size();
+	}
+
+	public int getActiveMatchCount()
+	{
+		return activeMatches.size();
+	}
+
+	public boolean isRegistrationOpen()
+	{
+		return state == State.RUNNING;
+	}
+
+	private boolean isCombatRunning()
+	{
+		return (state == State.RUNNING) || (state == State.CLOSING);
+	}
+
+	private void scheduleWindowCheck(long delay)
+	{
+		ThreadPool.schedule(() ->
+		{
+			try
+			{
+				checkEventWindow();
+			}
+			catch (Exception e)
+			{
+				LOGGER.log(Level.SEVERE, "Clan Korean: Error verificando el horario del evento.", e);
+			}
+			finally
+			{
+				scheduleWindowCheck(30000);
+			}
+		}, delay);
+	}
+
+	private synchronized void checkEventWindow()
+	{
+		final LocalDateTime window = getCurrentWindow(LocalDateTime.now());
+		if ((state == State.RUNNING) && !java.util.Objects.equals(activeWindowStart, window))
+		{
+			closeRegistrationWindow();
+		}
+		if ((window != null) && (state == State.INACTIVE))
+		{
+			activeWindowStart = window;
+			startContinuousEvent();
+		}
+	}
+
+	private LocalDateTime getCurrentWindow(LocalDateTime dateTime)
+	{
+		LocalDateTime current = null;
+		for (int daysAgo = 0; daysAgo <= 1; daysAgo++)
+		{
+			final java.time.LocalDate date = dateTime.toLocalDate().minusDays(daysAgo);
+			if (!ClanKoreanConfig.EVENT_DAYS.contains(date.getDayOfWeek()))
+			{
+				continue;
+			}
+			for (LocalTime time : ClanKoreanConfig.EVENT_START_TIMES)
+			{
+				final LocalDateTime start = date.atTime(time);
+				if (!dateTime.isBefore(start) && dateTime.isBefore(start.plusMinutes(ClanKoreanConfig.EVENT_DURATION_MINUTES)) && ((current == null) || start.isAfter(current)))
+				{
+					current = start;
+				}
+			}
+		}
+		return current;
+	}
+
 	public boolean isRegistered(Player player)
 	{
 		return (player != null) && registeredTeams.values().stream().anyMatch(team -> team.memberIds.contains(player.getObjectId()));
 	}
-	
+
 	public List<Player> getOnlineClanMembers(Player leader)
 	{
 		final List<Player> result = new ArrayList<>();
@@ -99,7 +176,7 @@ public final class ClanKoreanEvent
 		result.sort(Comparator.comparing(Player::getName, String.CASE_INSENSITIVE_ORDER));
 		return result;
 	}
-	
+
 	public List<Integer> getSelection(Player leader)
 	{
 		if (!isClanLeader(leader))
@@ -113,10 +190,10 @@ public final class ClanKoreanEvent
 			return selected;
 		});
 	}
-	
+
 	public synchronized String toggleMember(Player leader, int objectId)
 	{
-		if (state != State.REGISTRATION)
+		if (!isRegistrationOpen())
 		{
 			return "El registro no esta disponible.";
 		}
@@ -149,10 +226,10 @@ public final class ClanKoreanEvent
 		selected.add(objectId);
 		return member.getName() + " fue agregado al equipo.";
 	}
-	
+
 	public synchronized String registerTeam(Player leader)
 	{
-		if (state != State.REGISTRATION)
+		if (!isRegistrationOpen())
 		{
 			return "El registro no esta disponible.";
 		}
@@ -211,18 +288,20 @@ public final class ClanKoreanEvent
 		final Team team = new Team(leader.getClanId(), leader.getClan().getName(), leader.getObjectId(), selected);
 		registeredTeams.put(team.clanId, team);
 		registrationOrder.add(team);
+		pendingTeams.add(team);
 		for (int objectId : selected)
 		{
 			final Player member = World.getInstance().getPlayer(objectId);
 			member.setArenaProtection(true);
 			member.sendMessage("Clan Korean: Tu equipo fue registrado. Orden de combate: " + (selected.indexOf(objectId) + 1) + ".");
 		}
+		ThreadPool.schedule(this::dispatchMatches, 100);
 		return "Equipo registrado correctamente.";
 	}
-	
+
 	public synchronized String unregisterTeam(Player leader)
 	{
-		if ((state != State.REGISTRATION) || !isClanLeader(leader))
+		if (!isRegistrationOpen() || !isClanLeader(leader))
 		{
 			return "No puedes cancelar el registro en este momento.";
 		}
@@ -231,16 +310,35 @@ public final class ClanKoreanEvent
 		{
 			return "Tu clan no tiene un equipo registrado.";
 		}
+		if (isTeamFighting(team))
+		{
+			registeredTeams.put(team.clanId, team);
+			return "No puedes cancelar mientras tu equipo esta combatiendo.";
+		}
 		registrationOrder.remove(team);
+		pendingTeams.remove(team);
+		selections.remove(team.leaderId);
 		clearProtection(team);
 		return "El equipo fue retirado del evento.";
 	}
-	
+
 	private boolean isClanLeader(Player player)
 	{
 		return (player != null) && (player.getClan() != null) && (player.getClan().getLeaderId() == player.getObjectId());
 	}
-	
+
+	private boolean isTeamFighting(Team team)
+	{
+		for (Match current : activeMatches.values())
+		{
+			if ((current.team1 == team) || (current.team2 == team))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private String validateMember(Player player, int clanId)
 	{
 		if ((player == null) || !player.isOnline())
@@ -265,12 +363,12 @@ public final class ClanKoreanEvent
 		}
 		return null;
 	}
-	
+
 	private ClientHardwareInfoHolder getHardwareInfo(Player player)
 	{
 		return ((player == null) || (player.getClient() == null)) ? null : player.getClient().getHardwareInfo();
 	}
-	
+
 	private boolean isHardwareRegistered(ClientHardwareInfoHolder hardwareInfo)
 	{
 		if (hardwareInfo == null)
@@ -291,8 +389,8 @@ public final class ClanKoreanEvent
 		}
 		return false;
 	}
-	
-	public synchronized void startRegistration()
+
+	public synchronized void startContinuousEvent()
 	{
 		if (state != State.INACTIVE)
 		{
@@ -304,52 +402,68 @@ public final class ClanKoreanEvent
 		activeMatches.clear();
 		arenas.clear();
 		selections.clear();
-		state = State.REGISTRATION;
-		spawnNpc();
-		Broadcast.toAllOnlinePlayers("Clan Korean 5x5: Registro abierto durante " + ClanKoreanConfig.REGISTRATION_MINUTES + " minutos.");
-		ThreadPool.schedule(this::closeRegistration, ClanKoreanConfig.REGISTRATION_MINUTES * 60L * 1000L);
-	}
-	
-	private synchronized void closeRegistration()
-	{
-		if (state != State.REGISTRATION)
-		{
-			return;
-		}
-		unspawnNpc();
-		for (Team team : new ArrayList<>(registrationOrder))
-		{
-			if (validateTeam(team) != null)
-			{
-				registrationOrder.remove(team);
-				registeredTeams.remove(team.clanId);
-				clearProtection(team);
-			}
-		}
-		if (registrationOrder.size() < 2)
-		{
-			Broadcast.toAllOnlinePlayers("Clan Korean: Evento cancelado. Se necesitan al menos dos clanes validos.");
-			resetEvent();
-			return;
-		}
 		for (int i = 0; i < ClanKoreanConfig.ARENA_LOCATIONS.length; i++)
 		{
 			arenas.add(new Arena(i, ClanKoreanConfig.ARENA_LOCATIONS[i]));
 		}
-		pendingTeams.addAll(registrationOrder);
-		state = State.FIGHTING;
-		Broadcast.toAllOnlinePlayers("Clan Korean: Comienzan " + (pendingTeams.size() / 2) + " enfrentamientos en " + arenas.size() + " arena(s).");
-		dispatchMatches();
+		state = State.RUNNING;
+		spawnNpc();
+		Broadcast.toAllOnlinePlayers("Clan Korean 5x5: Registro continuo habilitado con " + arenas.size() + " arenas.");
 	}
-	
+
+	private synchronized void closeRegistrationWindow()
+	{
+		if (state != State.RUNNING)
+		{
+			return;
+		}
+		state = State.CLOSING;
+		unspawnNpc();
+		for (Team team : new ArrayList<>(pendingTeams))
+		{
+			pendingTeams.remove(team);
+			registeredTeams.remove(team.clanId);
+			registrationOrder.remove(team);
+			selections.remove(team.leaderId);
+			clearProtection(team);
+			final Player leader = World.getInstance().getPlayer(team.leaderId);
+			if ((leader != null) && leader.isOnline())
+			{
+				leader.sendMessage("Clan Korean: El horario de registro termino y tu equipo fue retirado de la cola.");
+			}
+		}
+		Broadcast.toAllOnlinePlayers("Clan Korean: Registro cerrado. Los combates activos finalizaran normalmente.");
+		if (activeMatches.isEmpty())
+		{
+			completeWindowClose();
+		}
+	}
+
+	private synchronized void completeWindowClose()
+	{
+		if ((state != State.CLOSING) || !activeMatches.isEmpty())
+		{
+			return;
+		}
+		registeredTeams.clear();
+		registrationOrder.clear();
+		pendingTeams.clear();
+		selections.clear();
+		arenas.clear();
+		activeWindowStart = null;
+		state = State.INACTIVE;
+		Broadcast.toAllOnlinePlayers("Clan Korean: Todos los combates finalizaron. Evento inactivo hasta la proxima fecha.");
+	}
+
 	private synchronized void dispatchMatches()
 	{
-		if (state != State.FIGHTING)
+		if (!isRegistrationOpen())
 		{
 			return;
 		}
 		for (Arena arena : arenas)
 		{
+			removeInvalidQueuedTeams();
 			if (!arena.free || (pendingTeams.size() < 2))
 			{
 				continue;
@@ -362,18 +476,34 @@ public final class ClanKoreanEvent
 			newMatch.prepare();
 			ThreadPool.schedule(newMatch::start, ClanKoreanConfig.PREPARE_SECONDS * 1000L);
 		}
-		if (activeMatches.isEmpty() && (pendingTeams.size() < 2))
+	}
+
+	private void removeInvalidQueuedTeams()
+	{
+		for (Team team : new ArrayList<>(pendingTeams))
 		{
-			finishEventWindow();
+			if (validateTeam(team) != null)
+			{
+				pendingTeams.remove(team);
+				registeredTeams.remove(team.clanId);
+				registrationOrder.remove(team);
+				selections.remove(team.leaderId);
+				clearProtection(team);
+				final Player leader = World.getInstance().getPlayer(team.leaderId);
+				if ((leader != null) && leader.isOnline())
+				{
+					leader.sendMessage("Clan Korean: El equipo fue retirado de la cola porque dejo de cumplir los requisitos.");
+				}
+			}
 		}
 	}
-	
+
 	private String validateTeam(Team team)
 	{
 		final Player leader = World.getInstance().getPlayer(team.leaderId);
 		if ((leader == null) || !leader.isOnline() || (leader.getClan() == null) || (leader.getClanId() != team.clanId) || (leader.getClan().getLevel() < ClanKoreanConfig.MINIMUM_CLAN_LEVEL))
 		{
-			return "El lider o el nivel del clan ya no cumple los requisitos.";
+			return "Lider o nivel de clan invalido";
 		}
 		for (int objectId : team.memberIds)
 		{
@@ -385,7 +515,7 @@ public final class ClanKoreanEvent
 		}
 		return null;
 	}
-	
+
 	private void spawnNpc()
 	{
 		try
@@ -408,7 +538,7 @@ public final class ClanKoreanEvent
 			LOGGER.log(Level.SEVERE, "Clan Korean: Error al crear el NPC.", e);
 		}
 	}
-	
+
 	private void unspawnNpc()
 	{
 		final Spawn spawn = npcSpawn;
@@ -424,43 +554,7 @@ public final class ClanKoreanEvent
 		spawn.stopRespawn();
 		npcSpawn = null;
 	}
-	
-	private void scheduleNextEvent()
-	{
-		long shortestDelay = Long.MAX_VALUE;
-		final LocalDateTime now = LocalDateTime.now();
-		for (String value : ClanKoreanConfig.START_TIMES)
-		{
-			final String trimmed = value.trim();
-			if (trimmed.isEmpty())
-			{
-				continue;
-			}
-			try
-			{
-				final LocalTime time = LocalTime.parse(trimmed);
-				LocalDateTime next = now.toLocalDate().atTime(time);
-				if (!next.isAfter(now))
-				{
-					next = next.plusDays(1);
-				}
-				shortestDelay = Math.min(shortestDelay, Duration.between(now, next).toMillis());
-			}
-			catch (Exception e)
-			{
-				LOGGER.warning("Clan Korean: Horario invalido: " + trimmed);
-			}
-		}
-		if (shortestDelay != Long.MAX_VALUE)
-		{
-			ThreadPool.schedule(() ->
-			{
-				startRegistration();
-				scheduleNextEvent();
-			}, shortestDelay);
-		}
-	}
-	
+
 	private synchronized void finishMatch(Match finishedMatch, Team winner, String reason)
 	{
 		if ((state == State.INACTIVE) || (finishedMatch == null) || !activeMatches.containsKey(finishedMatch.arena.id))
@@ -474,7 +568,10 @@ public final class ClanKoreanEvent
 				final Player player = World.getInstance().getPlayer(objectId);
 				if ((player != null) && player.isOnline())
 				{
-					player.addItem("Clan_Korean", ClanKoreanConfig.REWARD_ID, ClanKoreanConfig.REWARD_AMOUNT, player, true);
+					for (long[] reward : ClanKoreanConfig.REWARDS)
+					{
+						player.addItem("Clan_Korean", (int) reward[0], reward[1], player, true);
+					}
 				}
 			}
 			Broadcast.toAllOnlinePlayers("Clan Korean - Arena " + (finishedMatch.arena.id + 1) + ": El clan " + winner.clanName + " gano el combate. " + reason);
@@ -484,37 +581,24 @@ public final class ClanKoreanEvent
 			Broadcast.toAllOnlinePlayers("Clan Korean - Arena " + (finishedMatch.arena.id + 1) + ": El combate termino en empate. " + reason);
 		}
 		finishedMatch.cleanup();
+		registeredTeams.remove(finishedMatch.team1.clanId);
+		registeredTeams.remove(finishedMatch.team2.clanId);
+		registrationOrder.remove(finishedMatch.team1);
+		registrationOrder.remove(finishedMatch.team2);
+		selections.remove(finishedMatch.team1.leaderId);
+		selections.remove(finishedMatch.team2.leaderId);
 		activeMatches.remove(finishedMatch.arena.id);
 		finishedMatch.arena.free = true;
-		ThreadPool.schedule(this::dispatchMatches, 3000);
-	}
-	
-	private synchronized void finishEventWindow()
-	{
-		if (state == State.INACTIVE)
+		if (state == State.RUNNING)
 		{
-			return;
+			ThreadPool.schedule(this::dispatchMatches, ClanKoreanConfig.ARENA_REUSE_DELAY_SECONDS * 1000L);
 		}
-		if (!pendingTeams.isEmpty())
+		else if (state == State.CLOSING)
 		{
-			final Team withoutOpponent = pendingTeams.remove(0);
-			clearProtection(withoutOpponent);
-			final Player leader = World.getInstance().getPlayer(withoutOpponent.leaderId);
-			if ((leader != null) && leader.isOnline())
-			{
-				leader.sendMessage("Clan Korean: Tu equipo quedo sin rival y fue retirado de la cola.");
-			}
+			completeWindowClose();
 		}
-		registeredTeams.clear();
-		registrationOrder.clear();
-		pendingTeams.clear();
-		activeMatches.clear();
-		arenas.clear();
-		selections.clear();
-		state = State.INACTIVE;
-		Broadcast.toAllOnlinePlayers("Clan Korean: Todos los enfrentamientos finalizaron.");
 	}
-	
+
 	private synchronized void resetEvent()
 	{
 		unspawnNpc();
@@ -530,7 +614,7 @@ public final class ClanKoreanEvent
 		selections.clear();
 		state = State.INACTIVE;
 	}
-	
+
 	private void clearProtection(Team team)
 	{
 		for (int objectId : team.memberIds)
@@ -546,7 +630,7 @@ public final class ClanKoreanEvent
 			}
 		}
 	}
-	
+
 	private final class Match
 	{
 		private final Arena arena;
@@ -559,32 +643,27 @@ public final class ClanKoreanEvent
 		private int activeObjectId2 = -1;
 		private long fighterDeadline;
 		private long matchDeadline;
-		
+
 		private Match(Arena arena, Team team1, Team team2)
 		{
 			this.arena = arena;
 			this.team1 = team1;
 			this.team2 = team2;
 		}
-		
+
 		private void prepare()
 		{
 			prepareTeam(team1, arena.team1X, arena.team1Y, arena.team1Z);
 			prepareTeam(team2, arena.team2X, arena.team2Y, arena.team2Z);
 			Broadcast.toAllOnlinePlayers("Clan Korean - Arena " + (arena.id + 1) + ": " + team1.clanName + " vs " + team2.clanName + ".");
 		}
-		
+
 		private void prepareTeam(Team team, int x, int y, int z)
 		{
 			for (int i = 0; i < team.memberIds.size(); i++)
 			{
 				final Player player = World.getInstance().getPlayer(team.memberIds.get(i));
-				returnLocations.put(player.getObjectId(), new int[]
-				{
-					player.getX(),
-					player.getY(),
-					player.getZ()
-				});
+				returnLocations.put(player.getObjectId(), new int[] { player.getX(), player.getY(), player.getZ() });
 				player.setCurrentCp(player.getMaxCp());
 				player.setCurrentHp(player.getMaxHp());
 				player.setCurrentMp(player.getMaxMp());
@@ -596,38 +675,37 @@ public final class ClanKoreanEvent
 				player.teleToLocation(x, y + (i * ClanKoreanConfig.BENCH_OFFSET_Y), z, 0);
 			}
 		}
-		
+
 		private void start()
 		{
-			if ((state != State.FIGHTING) || !activeMatches.containsKey(arena.id))
+			if (!isCombatRunning() || !activeMatches.containsKey(arena.id))
 			{
 				return;
 			}
-			state = State.FIGHTING;
 			matchDeadline = System.currentTimeMillis() + (ClanKoreanConfig.MATCH_TIME_MINUTES * 60L * 1000L);
 			activateCurrentFighters();
 			ThreadPool.schedule(this::check, 1000);
 		}
-		
+
 		private void activateCurrentFighters()
 		{
 			final Player fighter1 = getPlayer(team1, index1);
 			final Player fighter2 = getPlayer(team2, index2);
 			if (fighter1.getObjectId() != activeObjectId1)
 			{
-				activate(fighter1, arena.team1X, arena.team1Y, arena.team1Z);
+			activate(fighter1, arena.team1X, arena.team1Y, arena.team1Z);
 				activeObjectId1 = fighter1.getObjectId();
 			}
 			if (fighter2.getObjectId() != activeObjectId2)
 			{
-				activate(fighter2, arena.team2X, arena.team2Y, arena.team2Z);
+			activate(fighter2, arena.team2X, arena.team2Y, arena.team2Z);
 				activeObjectId2 = fighter2.getObjectId();
 			}
 			fighterDeadline = System.currentTimeMillis() + (ClanKoreanConfig.FIGHTER_TIME_SECONDS * 1000L);
 			final String message = "Clan Korean: " + fighter1.getName() + " vs " + fighter2.getName() + ".";
 			forEachParticipant(player -> player.sendMessage(message));
 		}
-		
+
 		private void activate(Player player, int x, int y, int z)
 		{
 			if (player.isDead())
@@ -643,7 +721,7 @@ public final class ClanKoreanEvent
 			player.setArenaAttack(true);
 			player.broadcastUserInfo();
 		}
-		
+
 		private void eliminate(Player player)
 		{
 			if ((player != null) && player.isOnline())
@@ -653,10 +731,10 @@ public final class ClanKoreanEvent
 				player.setStopArena(true);
 			}
 		}
-		
+
 		private void check()
 		{
-			if (state != State.FIGHTING)
+			if (!isCombatRunning())
 			{
 				return;
 			}
@@ -664,10 +742,10 @@ public final class ClanKoreanEvent
 			final Player fighter2 = getPlayer(team2, index2);
 			final boolean lost1 = (fighter1 == null) || !fighter1.isOnline() || fighter1.isDead();
 			final boolean lost2 = (fighter2 == null) || !fighter2.isOnline() || fighter2.isDead();
-			
+
 			if (System.currentTimeMillis() >= matchDeadline)
 			{
-				finishMatch(this, null, "Se alcanzo el tiempo maximo del combate.");
+				finishMatchByTime();
 				return;
 			}
 			if (lost1 && lost2)
@@ -718,7 +796,7 @@ public final class ClanKoreanEvent
 				ThreadPool.schedule(this::check, 1000);
 				return;
 			}
-			
+
 			if ((index1 >= TEAM_SIZE) && (index2 >= TEAM_SIZE))
 			{
 				finishMatch(this, null, "Ambos equipos perdieron a su ultimo luchador.");
@@ -737,12 +815,53 @@ public final class ClanKoreanEvent
 				ThreadPool.schedule(this::check, 4000);
 			}
 		}
-		
+
+		private void finishMatchByTime()
+		{
+			final int remaining1 = TEAM_SIZE - index1;
+			final int remaining2 = TEAM_SIZE - index2;
+
+			if (remaining1 > remaining2)
+			{
+				finishMatch(this, team1, "Se alcanzo el tiempo maximo. Gano por tener mas luchadores restantes (" + remaining1 + " vs " + remaining2 + ").");
+				return;
+			}
+
+			if (remaining2 > remaining1)
+			{
+				finishMatch(this, team2, "Se alcanzo el tiempo maximo. Gano por tener mas luchadores restantes (" + remaining2 + " vs " + remaining1 + ").");
+				return;
+			}
+
+			final Player fighter1 = getPlayer(team1, index1);
+			final Player fighter2 = getPlayer(team2, index2);
+
+			if ((fighter1 != null) && fighter1.isOnline() && (fighter2 != null) && fighter2.isOnline())
+			{
+				final double life1 = lifePercent(fighter1);
+				final double life2 = lifePercent(fighter2);
+
+				if (life1 > life2)
+				{
+					finishMatch(this, team1, "Se alcanzo el tiempo maximo. Ambos equipos tenian la misma cantidad de luchadores y se definio por HP + CP.");
+					return;
+				}
+
+				if (life2 > life1)
+				{
+					finishMatch(this, team2, "Se alcanzo el tiempo maximo. Ambos equipos tenian la misma cantidad de luchadores y se definio por HP + CP.");
+					return;
+				}
+			}
+
+			finishMatch(this, null, "Se alcanzo el tiempo maximo y ambos equipos terminaron en igualdad.");
+		}
+
 		private double lifePercent(Player player)
 		{
 			return ((player.getCurrentHp() + player.getCurrentCp()) * 100.0) / (player.getMaxHp() + player.getMaxCp());
 		}
-		
+
 		private void healWinner(Player player)
 		{
 			if (ClanKoreanConfig.HEAL_WINNER && (player != null) && player.isOnline())
@@ -752,12 +871,12 @@ public final class ClanKoreanEvent
 				player.setCurrentMp(player.getMaxMp());
 			}
 		}
-		
+
 		private Player getPlayer(Team team, int index)
 		{
 			return (index >= team.memberIds.size()) ? null : World.getInstance().getPlayer(team.memberIds.get(index));
 		}
-		
+
 		private void cleanup()
 		{
 			forEachParticipant(player ->
@@ -782,34 +901,28 @@ public final class ClanKoreanEvent
 				player.broadcastUserInfo();
 			});
 		}
-		
+
 		private void forEachParticipant(PlayerConsumer consumer)
 		{
 			for (int objectId : team1.memberIds)
 			{
 				final Player player = World.getInstance().getPlayer(objectId);
-				if ((player != null) && player.isOnline())
-				{
-					consumer.accept(player);
-				}
+				if ((player != null) && player.isOnline()) consumer.accept(player);
 			}
 			for (int objectId : team2.memberIds)
 			{
 				final Player player = World.getInstance().getPlayer(objectId);
-				if ((player != null) && player.isOnline())
-				{
-					consumer.accept(player);
-				}
+				if ((player != null) && player.isOnline()) consumer.accept(player);
 			}
 		}
 	}
-	
+
 	@FunctionalInterface
 	private interface PlayerConsumer
 	{
 		void accept(Player player);
 	}
-	
+
 	private static final class Arena
 	{
 		private final int id;
@@ -820,7 +933,7 @@ public final class ClanKoreanEvent
 		private final int team2Y;
 		private final int team2Z;
 		private volatile boolean free = true;
-		
+
 		private Arena(int id, int[] location)
 		{
 			this.id = id;
@@ -832,14 +945,14 @@ public final class ClanKoreanEvent
 			team2Z = location[5];
 		}
 	}
-	
+
 	private static final class Team
 	{
 		private final int clanId;
 		private final String clanName;
 		private final int leaderId;
 		private final List<Integer> memberIds;
-		
+
 		private Team(int clanId, String clanName, int leaderId, List<Integer> memberIds)
 		{
 			this.clanId = clanId;
@@ -848,7 +961,7 @@ public final class ClanKoreanEvent
 			this.memberIds = new ArrayList<>(memberIds);
 		}
 	}
-	
+
 	private static final class SingletonHolder
 	{
 		private static final ClanKoreanEvent INSTANCE = new ClanKoreanEvent();

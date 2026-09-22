@@ -37,6 +37,7 @@ import org.l2jmobius.gameserver.model.siege.Castle.CastleFunction;
 import org.l2jmobius.gameserver.model.siege.Fort;
 import org.l2jmobius.gameserver.model.siege.Fort.FortFunction;
 import org.l2jmobius.gameserver.network.PacketLogger;
+import org.l2jmobius.gameserver.util.EventRespawnProtection;
 
 /**
  * @version $Revision: 1.7.2.3.2.6 $ $Date: 2005/03/27 15:29:30 $
@@ -88,6 +89,12 @@ public class RequestRestartPoint extends ClientPacket
 			return;
 		}
 		else if (!player.isDead())
+		{
+			return;
+		}
+		
+		// Let the event control resurrection; manual requests must not bypass its timer.
+		if (EventRespawnProtection.isProtected(player))
 		{
 			return;
 		}

@@ -32,7 +32,7 @@ public class ArenaConfig
 {
 	protected static final Logger LOGGER = Logger.getLogger(ArenaConfig.class.getName());
 	
-	private static final String ARENA_FILE = "./config/custom/tournament.ini";
+	private static final String ARENA_FILE = "./config/Events/Tournament.ini";
 	
 	// tournament
 	public static boolean TOURNAMENT_EVENT_START;
@@ -43,6 +43,7 @@ public class ArenaConfig
 	
 	public static int TOURNAMENT_TIME;
 	public static String[] TOURNAMENT_EVENT_INTERVAL_BY_TIME_OF_DAY;
+	public static String TOURNAMENT_EVENT_DAYS = "ALL";
 	
 	public static String TITLE_COLOR_TEAM1;
 	public static String TITLE_COLOR_TEAM2;
@@ -173,6 +174,8 @@ public class ArenaConfig
 		CHECK_NOBLESS = Boolean.parseBoolean(tournament.getProperty("TournamentNobles", "false"));
 		
 		TOURNAMENT_EVENT_INTERVAL_BY_TIME_OF_DAY = tournament.getProperty("TournamentStartTime", "20:00").split(",");
+		
+		TOURNAMENT_EVENT_DAYS = tournament.getProperty("TournamentDays", "ALL");
 		
 		TOURNAMENT_TIME = Integer.parseInt(tournament.getProperty("TournamentEventTime", "1"));
 		

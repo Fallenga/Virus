@@ -120,7 +120,7 @@ public class Config
 	// --------------------------------------------------
 	private static final String CUSTOM_ALLOWED_PLAYER_RACES_CONFIG_FILE = "./config/Custom/AllowedPlayerRaces.ini";
 	private static final String CUSTOM_AUTO_PLAY_CONFIG_FILE = "./config/Custom/AutoPlay.ini";
-	private static final String CHAMPION_EVENT = "./config/Custom/ChampionInvade.ini";
+	private static final String MONASTERY_EVENT = "./config/Events/MonasteryBonus.ini";
 	private static final String CUSTOM_AUTO_POTIONS_CONFIG_FILE = "./config/Custom/AutoPotions.ini";
 	private static final String CUSTOM_BANKING_CONFIG_FILE = "./config/Custom/Banking.ini";
 	private static final String CUSTOM_BOSS_ANNOUNCEMENTS_CONFIG_FILE = "./config/Custom/BossAnnouncements.ini";
@@ -357,21 +357,10 @@ public class Config
 	public static boolean SILENCE_MODE_EXCLUDE;
 	public static CrystalType MAX_EQUIPABLE_ITEM_GRADE;
 	
-	/** Variaveis Champion Invade */
-	public static int EVENT_CHAMPION_FARM_TIME;
-	public static String[] EVENT_CHAMPION_FARM_INTERVAL_BY_TIME_OF_DAY;
-	public static String CHAMPION_FARM_MESSAGE_TEXT;
-	public static boolean CHAMPION_FARM_BY_TIME_OF_DAY;
-	public static boolean START_CHAMPION_EVENT;
-	public static boolean CHAMPION_MESSAGE_ENABLED;
-	public static int CHAMPION_INVADE_FREQUENCY;
-	public static String CHAMPION_MONSTER;
-	public static List<Integer> LIST_NPC_CHAMPION_MONSTER = new ArrayList<>();
-	public static String TITLE_CHAMPION_INVADE;
-	public static int CHAMPION_INVADE_ENABLE_AURA;
-	public static boolean RED_NAME_CHAMPION_INVADE;
-	public static List<int[]> CHAMPION_INVADE_DROP = new ArrayList<>();
-	public static boolean VIP_REWARD_BONUS_INVADE;
+	/** Variables Monastery Bonus */
+	public static boolean MONASTERY_BONUS_ENABLED;
+	public static int MONASTERY_BONUS_DURATION_MINUTES;
+	public static String[] MONASTERY_BONUS_START_TIMES;
 	
 	// --------------------------------------------------
 	// Castle Settings
@@ -1836,74 +1825,10 @@ public class Config
 			/**
 			 * Load Champion Invade Configuration
 			 */
-			final PropertiesParser ChampionInvade = new PropertiesParser(CHAMPION_EVENT);
-			START_CHAMPION_EVENT = ChampionInvade.getBoolean("ChampionInvadeEnabled", false);
-			EVENT_CHAMPION_FARM_TIME = ChampionInvade.getInt("ChampionInvadeEventTime", 1);
-			EVENT_CHAMPION_FARM_INTERVAL_BY_TIME_OF_DAY = ChampionInvade.getString("ChampionInvadeStartTime", "20:00").split(",");
-			CHAMPION_MESSAGE_ENABLED = ChampionInvade.getBoolean("ChampionInvadeMessageEnabled", false);
-			CHAMPION_FARM_MESSAGE_TEXT = ChampionInvade.getString("ScreenChampionInvadeMessageText", "¡El evento Champion Invade ha comenzado!");
-			
-			// Porcentaje de aparición del Champion
-			CHAMPION_INVADE_FREQUENCY = ChampionInvade.getInt("ChampionPercent", 1);
-			
-			// Lista de monstruos admitidos para el evento
-			CHAMPION_MONSTER = ChampionInvade.getString("List_Champion", "0");
-			LIST_NPC_CHAMPION_MONSTER.clear();
-			if (!CHAMPION_MONSTER.equals("0") && !CHAMPION_MONSTER.isEmpty())
-			{
-				for (String listid : CHAMPION_MONSTER.split(","))
-				{
-					try
-					{
-						LIST_NPC_CHAMPION_MONSTER.add(Integer.parseInt(listid.trim()));
-					}
-					catch (NumberFormatException e)
-					{
-						LOGGER.warning("[Champion Invade]: ID de NPC invalido en List_Champion: " + listid);
-					}
-				}
-			}
-			
-			// Visuales del Champion Invade
-			TITLE_CHAMPION_INVADE = ChampionInvade.getString("ChampionInvadeTitle", "CHAMPION");
-			CHAMPION_INVADE_ENABLE_AURA = ChampionInvade.getInt("ChampionInvadeEnableAura", 0);
-			RED_NAME_CHAMPION_INVADE = ChampionInvade.getBoolean("EnableChampionNameRED", false);
-			
-			// Carga y validación de Recompensas (Drops)
-			final String dropsConfig = ChampionInvade.getString("RewardList", "57,100");
-			CHAMPION_INVADE_DROP.clear();
-			for (String reward : dropsConfig.split(";"))
-			{
-				if (reward.isEmpty())
-				{
-					continue;
-				}
-				
-				final String[] rewardSplit = reward.split(",");
-				if (rewardSplit.length != 2)
-				{
-					LOGGER.warning("[Champion Invade]: Error de formato en RewardList. Use: itemId,cantidad;itemId,cantidad");
-				}
-				else
-				{
-					try
-					{
-						CHAMPION_INVADE_DROP.add(new int[]
-						{
-							Integer.parseInt(rewardSplit[0].trim()),
-							Integer.parseInt(rewardSplit[1].trim())
-						});
-					}
-					catch (NumberFormatException nfe)
-					{
-						LOGGER.warning("[Champion Invade]: Error numerico en RewardList: " + reward);
-					}
-					
-				}
-				
-				// Bonus de Drop para usuarios VIP/Premium
-				VIP_REWARD_BONUS_INVADE = ChampionInvade.getBoolean("VIPBonusDrop", false);
-			}
+			final PropertiesParser monasterybonus = new PropertiesParser(MONASTERY_EVENT);
+			MONASTERY_BONUS_ENABLED = monasterybonus.getBoolean("MonasteryBonusEnabled", false);
+			MONASTERY_BONUS_DURATION_MINUTES = monasterybonus.getInt("MonasteryBonusDurationMinutes", 60);
+			MONASTERY_BONUS_START_TIMES = monasterybonus.getString("MonasteryBonusStartTimes", "09:00,16:00,21:00").split(",");
 			
 			// Load Attendance config file (if exists)
 			final PropertiesParser attandanceConfig = new PropertiesParser(ATTENDANCE_CONFIG_FILE);

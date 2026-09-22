@@ -159,6 +159,7 @@ import org.l2jmobius.gameserver.model.World;
 import org.l2jmobius.gameserver.model.events.EventDispatcher;
 import org.l2jmobius.gameserver.model.events.EventType;
 import org.l2jmobius.gameserver.model.events.clankorean.ClanKoreanEvent;
+import org.l2jmobius.gameserver.model.events.fos.FOSManager;
 import org.l2jmobius.gameserver.model.events.impl.OnServerStart;
 import org.l2jmobius.gameserver.model.events.tournament.properties.ArenaConfig;
 import org.l2jmobius.gameserver.model.events.tournament.properties.ArenaEvent;
@@ -223,8 +224,7 @@ public class GameServer
 		
 		printSection("Database");
 		DatabaseFactory.init();
-		// Inicializa el evento Clan Korean 5x5.
-		ClanKoreanEvent.init();
+		
 		printSection("ThreadPool");
 		ThreadPool.init();
 		
@@ -478,7 +478,9 @@ public class GameServer
 		try
 		{
 			ArenaConfig.init();
-			
+			// Inicializa el evento Clan Korean 5x5.
+			ClanKoreanEvent.init();
+			FOSManager.init();
 			if (ArenaConfig.TOURNAMENT_EVENT_TIME)
 			{
 				LOGGER.info("Tournament Event is enabled (Scheduled mode).");

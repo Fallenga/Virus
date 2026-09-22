@@ -74,8 +74,10 @@ public class ClanKorean extends Npc
 		html.append("Combates 1 vs 1 por turnos.<br1>El ganador permanece en la arena.<br><br>");
 		html.append("Clan minimo: <font color=LEVEL>nivel ").append(ClanKoreanConfig.MINIMUM_CLAN_LEVEL).append("</font><br1>");
 		html.append("Estado: <font color=00FF00>").append(event.getState()).append("</font><br1>");
-		html.append("Clanes en cola: <font color=LEVEL>").append(event.getRegisteredTeamCount()).append("</font><br><br>");
-		if (event.getState() == ClanKoreanEvent.State.REGISTRATION)
+		html.append("Arenas activas: <font color=LEVEL>").append(event.getActiveMatchCount()).append("/").append(ClanKoreanConfig.ARENA_LOCATIONS.length).append("</font><br1>");
+		html.append("Equipos esperando: <font color=LEVEL>").append(event.getWaitingTeamCount()).append("</font><br1>");
+		html.append("Clanes registrados: <font color=LEVEL>").append(event.getRegisteredTeamCount()).append("</font><br><br>");
+		if (event.isRegistrationOpen())
 		{
 			html.append("<button value=\"Seleccionar equipo\" action=\"bypass -h npc_%objectId%_ck_list 0\" width=180 height=26 back=\"L2UI_CT1.Button_DF_Down\" fore=\"L2UI_CT1.Button_DF\"><br1>");
 			html.append("<button value=\"Cancelar registro\" action=\"bypass -h npc_%objectId%_ck_unregister\" width=180 height=26 back=\"L2UI_CT1.Button_DF_Down\" fore=\"L2UI_CT1.Button_DF\">");

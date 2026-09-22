@@ -30,6 +30,7 @@ import org.l2jmobius.gameserver.model.siege.Castle;
 import org.l2jmobius.gameserver.model.siege.Fort;
 import org.l2jmobius.gameserver.network.GameClient;
 import org.l2jmobius.gameserver.network.ServerPackets;
+import org.l2jmobius.gameserver.util.EventRespawnProtection;
 
 /**
  * @author UnAfraid, Nos
@@ -51,7 +52,8 @@ public class Die extends ServerPacket
 	public Die(Creature creature)
 	{
 		_objectId = creature.getObjectId();
-		if (creature.isPlayer())
+		// These events control resurrection. Keep all manual restart options disabled.
+		if (creature.isPlayer() && !EventRespawnProtection.isProtected(creature.asPlayer()))
 		{
 			final Clan clan = creature.asPlayer().getClan();
 			boolean isInCastleDefense = false;
