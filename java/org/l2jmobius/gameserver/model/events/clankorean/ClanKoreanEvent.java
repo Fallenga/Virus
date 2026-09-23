@@ -265,10 +265,6 @@ public final class ClanKoreanEvent
 			{
 				return error;
 			}
-			if (!EventBuffManager.hasSelection(member, EventBuffManager.KOREAN))
-			{
-				return member.getName() + " debe configurar sus buffs en el NPC antes de registrar el equipo.";
-			}
 			if (isRegistered(member))
 			{
 				return member.getName() + " ya esta registrado en otro equipo.";
