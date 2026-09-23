@@ -12,6 +12,7 @@ import org.l2jmobius.gameserver.enums.MountType;
 import org.l2jmobius.gameserver.enums.SkillFinishType;
 import org.l2jmobius.gameserver.model.Location;
 import org.l2jmobius.gameserver.model.actor.Player;
+import org.l2jmobius.gameserver.model.events.EventBuffManager;
 import org.l2jmobius.gameserver.model.actor.Summon;
 import org.l2jmobius.gameserver.model.actor.instance.Pet;
 import org.l2jmobius.gameserver.model.events.tournament.properties.ArenaConfig;
@@ -474,6 +475,7 @@ public class Arena9x9 implements Runnable
 		
 		public void teleportTo(int x, int y, int z)
 		{
+			applySelectedBuffs();
 			if ((leader != null) && leader.isOnline())
 			{
 				leader.setCurrentCp(leader.getMaxCp());
@@ -2047,4 +2049,44 @@ public class Arena9x9 implements Runnable
 	{
 		protected static final Arena9x9 INSTANCE = new Arena9x9();
 	}
+		private void applySelectedBuffs()
+		{
+			if ((leader != null) && leader.isOnline())
+			{
+				EventBuffManager.apply(leader, EventBuffManager.TOURNAMENT);
+			}
+			if ((assist != null) && assist.isOnline())
+			{
+				EventBuffManager.apply(assist, EventBuffManager.TOURNAMENT);
+			}
+			if ((assist2 != null) && assist2.isOnline())
+			{
+				EventBuffManager.apply(assist2, EventBuffManager.TOURNAMENT);
+			}
+			if ((assist3 != null) && assist3.isOnline())
+			{
+				EventBuffManager.apply(assist3, EventBuffManager.TOURNAMENT);
+			}
+			if ((assist4 != null) && assist4.isOnline())
+			{
+				EventBuffManager.apply(assist4, EventBuffManager.TOURNAMENT);
+			}
+			if ((assist5 != null) && assist5.isOnline())
+			{
+				EventBuffManager.apply(assist5, EventBuffManager.TOURNAMENT);
+			}
+			if ((assist6 != null) && assist6.isOnline())
+			{
+				EventBuffManager.apply(assist6, EventBuffManager.TOURNAMENT);
+			}
+			if ((assist7 != null) && assist7.isOnline())
+			{
+				EventBuffManager.apply(assist7, EventBuffManager.TOURNAMENT);
+			}
+			if ((assist8 != null) && assist8.isOnline())
+			{
+				EventBuffManager.apply(assist8, EventBuffManager.TOURNAMENT);
+			}
+		}
+
 }
