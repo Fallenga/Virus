@@ -513,6 +513,7 @@ public class Tournament extends Npc
 			}
 			if (Arena1x1.getInstance().register(player))
 			{
+				EventBuffManager.apply(player, EventBuffManager.TOURNAMENT);
 				player.setArena1x1(true);
 				player.setArenaProtection(true);
 			}
@@ -676,6 +677,7 @@ public class Tournament extends Npc
 				player.sendMessage("Tournament: Your participation has been approved.");
 				assist1.sendMessage("Tournament: Your participation has been approved.");
 				assist2.sendMessage("Tournament: Your participation has been approved.");
+				applySelectedBuffs(player.getParty().getMembers());
 				player.setArenaProtection(true);
 				assist1.setArenaProtection(true);
 				assist2.setArenaProtection(true);
@@ -950,6 +952,7 @@ public class Tournament extends Npc
 				assist3.sendMessage("Tournament: Your participation has been approved.");
 				assist4.sendMessage("Tournament: Your participation has been approved.");
 				
+				applySelectedBuffs(player.getParty().getMembers());
 				player.setArenaProtection(true);
 				assist1.setArenaProtection(true);
 				assist2.setArenaProtection(true);
@@ -1334,6 +1337,7 @@ public class Tournament extends Npc
 				assist7.sendMessage("Tournament: Your participation has been approved.");
 				assist8.sendMessage("Tournament: Your participation has been approved.");
 				
+				applySelectedBuffs(player.getParty().getMembers());
 				player.setArenaProtection(true);
 				assist.setArenaProtection(true);
 				assist2.setArenaProtection(true);
@@ -1702,6 +1706,14 @@ public class Tournament extends Npc
 		player.dominator_cont = 0;
 		player.doomcryer_cont = 0;
 	}
+	private void applySelectedBuffs(List<Player> members)
+	{
+		for (Player member : members)
+		{
+			EventBuffManager.apply(member, EventBuffManager.TOURNAMENT);
+		}
+	}
+	
 	private boolean hasEventBuffSelection(Player player)
 	{
 		if (EventBuffManager.hasSelection(player, EventBuffManager.TOURNAMENT))
