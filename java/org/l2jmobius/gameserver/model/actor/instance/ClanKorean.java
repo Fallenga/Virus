@@ -6,6 +6,7 @@ import java.util.StringTokenizer;
 import org.l2jmobius.gameserver.model.actor.Npc;
 import org.l2jmobius.gameserver.model.actor.Player;
 import org.l2jmobius.gameserver.model.actor.templates.NpcTemplate;
+import org.l2jmobius.gameserver.model.events.EventBuffManager;
 import org.l2jmobius.gameserver.model.events.clankorean.ClanKoreanConfig;
 import org.l2jmobius.gameserver.model.events.clankorean.ClanKoreanEvent;
 import org.l2jmobius.gameserver.network.serverpackets.ActionFailed;
@@ -41,6 +42,29 @@ public class ClanKorean extends Npc
 			final int page = st.hasMoreTokens() ? Integer.parseInt(st.nextToken()) : 0;
 			player.sendMessage("Clan Korean: " + ClanKoreanEvent.getInstance().toggleMember(player, objectId));
 			showSelection(player, page);
+		}
+		else if (action.equals("ck_buffs"))
+		{
+			EventBuffManager.showWindow(player, EventBuffManager.KOREAN, getObjectId());
+		}
+		else if (action.equals("eventbuff"))
+		{
+			if (st.hasMoreTokens() && EventBuffManager.KOREAN.equalsIgnoreCase(st.nextToken()) && st.hasMoreTokens())
+			{
+				EventBuffManager.select(player, EventBuffManager.KOREAN, st.nextToken());
+			}
+			showMain(player);
+		}
+		else if (action.equals("eventbuff_scheme"))
+		{
+			final String event = st.hasMoreTokens() ? st.nextToken() : "";
+			final int index = command.indexOf(event) + event.length();
+			final String scheme = command.substring(index).trim();
+			if (EventBuffManager.KOREAN.equalsIgnoreCase(event) && !scheme.isEmpty())
+			{
+				EventBuffManager.select(player, EventBuffManager.KOREAN, scheme);
+			}
+			showMain(player);
 		}
 		else if (action.equals("ck_register"))
 		{
@@ -79,6 +103,7 @@ public class ClanKorean extends Npc
 		html.append("Clanes registrados: <font color=LEVEL>").append(event.getRegisteredTeamCount()).append("</font><br><br>");
 		if (event.isRegistrationOpen())
 		{
+			html.append("<button value=\"Configurar buffs\" action=\"bypass -h npc_%objectId%_ck_buffs\" width=180 height=26 back=\"L2UI_CT1.Button_DF_Down\" fore=\"L2UI_CT1.Button_DF\"><br1>");
 			html.append("<button value=\"Seleccionar equipo\" action=\"bypass -h npc_%objectId%_ck_list 0\" width=180 height=26 back=\"L2UI_CT1.Button_DF_Down\" fore=\"L2UI_CT1.Button_DF\"><br1>");
 			html.append("<button value=\"Cancelar registro\" action=\"bypass -h npc_%objectId%_ck_unregister\" width=180 height=26 back=\"L2UI_CT1.Button_DF_Down\" fore=\"L2UI_CT1.Button_DF\">");
 		}

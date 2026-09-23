@@ -34,6 +34,7 @@ import org.l2jmobius.gameserver.model.World;
 import org.l2jmobius.gameserver.model.actor.Npc;
 import org.l2jmobius.gameserver.model.actor.Player;
 import org.l2jmobius.gameserver.model.actor.templates.NpcTemplate;
+import org.l2jmobius.gameserver.model.events.EventBuffManager;
 import org.l2jmobius.gameserver.model.events.tournament.Arena1x1;
 import org.l2jmobius.gameserver.model.events.tournament.Arena3x3;
 import org.l2jmobius.gameserver.model.events.tournament.Arena5x5;
@@ -61,6 +62,12 @@ public class Tournament extends Npc
 	public void showChatWindow(Player player)
 	{
 		player.sendPacket(ActionFailed.STATIC_PACKET);
+		
+		if (!player.isArenaProtection() && !EventBuffManager.hasSelection(player, EventBuffManager.TOURNAMENT))
+		{
+			EventBuffManager.showWindow(player, EventBuffManager.TOURNAMENT, getObjectId());
+			return;
+		}
 		
 		if (player.isArenaProtection())
 		{
@@ -413,6 +420,22 @@ public class Tournament extends Npc
 	@Override
 	public void onBypassFeedback(Player player, String command)
 	{
+		if (command.startsWith("eventbuff_scheme tournament "))
+		{
+			final String scheme = command.substring("eventbuff_scheme tournament ".length()).trim();
+			if (!scheme.isEmpty())
+			{
+				EventBuffManager.select(player, EventBuffManager.TOURNAMENT, scheme);
+			}
+			showChatWindow(player);
+			return;
+		}
+		if (command.startsWith("eventbuff tournament "))
+		{
+			EventBuffManager.select(player, EventBuffManager.TOURNAMENT, command.substring("eventbuff tournament ".length()).trim());
+			showChatWindow(player);
+			return;
+		}
 		if (!ArenaTask.is_started())
 		{
 			player.sendMessage("Tournament: El evento no se encuentra activo.");
@@ -484,8 +507,13 @@ public class Tournament extends Npc
 				return;
 			}
 			
+			if (!hasEventBuffSelection(player))
+			{
+				return;
+			}
 			if (Arena1x1.getInstance().register(player))
 			{
+				EventBuffManager.apply(player, EventBuffManager.TOURNAMENT);
 				player.setArena1x1(true);
 				player.setArenaProtection(true);
 			}
@@ -640,11 +668,16 @@ public class Tournament extends Npc
 				return;
 			}
 			
+			if (!hasEventBuffSelection(player.getParty().getMembers()))
+			{
+				return;
+			}
 			if (Arena3x3.getInstance().register(player, assist1, assist2))
 			{
 				player.sendMessage("Tournament: Your participation has been approved.");
 				assist1.sendMessage("Tournament: Your participation has been approved.");
 				assist2.sendMessage("Tournament: Your participation has been approved.");
+				applySelectedBuffs(player.getParty().getMembers());
 				player.setArenaProtection(true);
 				assist1.setArenaProtection(true);
 				assist2.setArenaProtection(true);
@@ -907,7 +940,11 @@ public class Tournament extends Npc
 				clean(player);
 				return;
 			}
-			else if (Arena5x5.getInstance().register(player, assist1, assist2, assist3, assist4))
+			else if (!hasEventBuffSelection(player.getParty().getMembers()))
+			{
+				return;
+			}
+			if (Arena5x5.getInstance().register(player, assist1, assist2, assist3, assist4))
 			{
 				player.sendMessage("Tournament: Your participation has been approved.");
 				assist1.sendMessage("Tournament: Your participation has been approved.");
@@ -915,6 +952,7 @@ public class Tournament extends Npc
 				assist3.sendMessage("Tournament: Your participation has been approved.");
 				assist4.sendMessage("Tournament: Your participation has been approved.");
 				
+				applySelectedBuffs(player.getParty().getMembers());
 				player.setArenaProtection(true);
 				assist1.setArenaProtection(true);
 				assist2.setArenaProtection(true);
@@ -1283,7 +1321,11 @@ public class Tournament extends Npc
 				clean(player);
 				return;
 			}
-			else if (Arena9x9.getInstance().register(player, assist, assist2, assist3, assist4, assist5, assist6, assist7, assist8))
+			else if (!hasEventBuffSelection(player.getParty().getMembers()))
+			{
+				return;
+			}
+			if (Arena9x9.getInstance().register(player, assist, assist2, assist3, assist4, assist5, assist6, assist7, assist8))
 			{
 				player.sendMessage("Tournament: Your participation has been approved.");
 				assist.sendMessage("Tournament: Your participation has been approved.");
@@ -1295,6 +1337,7 @@ public class Tournament extends Npc
 				assist7.sendMessage("Tournament: Your participation has been approved.");
 				assist8.sendMessage("Tournament: Your participation has been approved.");
 				
+				applySelectedBuffs(player.getParty().getMembers());
 				player.setArenaProtection(true);
 				assist.setArenaProtection(true);
 				assist2.setArenaProtection(true);
@@ -1663,4 +1706,34 @@ public class Tournament extends Npc
 		player.dominator_cont = 0;
 		player.doomcryer_cont = 0;
 	}
+	private void applySelectedBuffs(List<Player> members)
+	{
+		for (Player member : members)
+		{
+			EventBuffManager.apply(member, EventBuffManager.TOURNAMENT);
+		}
+	}
+	
+	private boolean hasEventBuffSelection(Player player)
+	{
+		if (EventBuffManager.hasSelection(player, EventBuffManager.TOURNAMENT))
+		{
+			return true;
+		}
+		player.sendMessage("Tournament: Configura tus buffs con el NPC antes de registrarte.");
+		return false;
+	}
+	
+	private boolean hasEventBuffSelection(List<Player> members)
+	{
+		for (Player member : members)
+		{
+			if (!hasEventBuffSelection(member))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 }
