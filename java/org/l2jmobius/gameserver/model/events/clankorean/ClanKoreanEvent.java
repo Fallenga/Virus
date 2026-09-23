@@ -19,6 +19,7 @@ import org.l2jmobius.gameserver.model.Spawn;
 import org.l2jmobius.gameserver.model.World;
 import org.l2jmobius.gameserver.model.actor.Npc;
 import org.l2jmobius.gameserver.model.actor.Player;
+import org.l2jmobius.gameserver.model.events.EventBuffManager;
 import org.l2jmobius.gameserver.model.actor.templates.NpcTemplate;
 import org.l2jmobius.gameserver.model.holders.ClientHardwareInfoHolder;
 import org.l2jmobius.gameserver.model.olympiad.OlympiadManager;
@@ -263,6 +264,10 @@ public final class ClanKoreanEvent
 			if (error != null)
 			{
 				return error;
+			}
+			if (!EventBuffManager.hasSelection(member, EventBuffManager.KOREAN))
+			{
+				return member.getName() + " debe configurar sus buffs en el NPC antes de registrar el equipo.";
 			}
 			if (isRegistered(member))
 			{
@@ -627,6 +632,7 @@ public final class ClanKoreanEvent
 				player.setInArenaEvent(false);
 				player.setStopArena(false);
 				player.setInvul(false);
+				EventBuffManager.clear(player, EventBuffManager.KOREAN);
 			}
 		}
 	}
@@ -672,6 +678,7 @@ public final class ClanKoreanEvent
 				player.setArenaAttack(false);
 				player.setInvul(true);
 				player.setStopArena(true);
+				EventBuffManager.apply(player, EventBuffManager.KOREAN);
 				player.teleToLocation(x, y + (i * ClanKoreanConfig.BENCH_OFFSET_Y), z, 0);
 			}
 		}
