@@ -12,6 +12,7 @@ import org.l2jmobius.gameserver.enums.MountType;
 import org.l2jmobius.gameserver.enums.SkillFinishType;
 import org.l2jmobius.gameserver.model.Location;
 import org.l2jmobius.gameserver.model.actor.Player;
+import org.l2jmobius.gameserver.model.events.EventBuffManager;
 import org.l2jmobius.gameserver.model.actor.Summon;
 import org.l2jmobius.gameserver.model.actor.instance.Pet;
 import org.l2jmobius.gameserver.model.events.tournament.properties.ArenaConfig;
@@ -269,6 +270,7 @@ public class Arena1x1 implements Runnable
 		
 		public void teleportTo(int x, int y, int z)
 		{
+			applySelectedBuffs();
 			if ((leader != null) && leader.isOnline())
 			{
 				leader.setCurrentCp(leader.getMaxCp());
@@ -723,4 +725,12 @@ public class Arena1x1 implements Runnable
 	{
 		protected static final Arena1x1 INSTANCE = new Arena1x1();
 	}
+		private void applySelectedBuffs()
+		{
+			if ((leader != null) && leader.isOnline())
+			{
+				EventBuffManager.apply(leader, EventBuffManager.TOURNAMENT);
+			}
+		}
+
 }
